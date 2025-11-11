@@ -16,19 +16,11 @@ export interface DiceRollConfig {
   triggers: string[];
   default: string[];
   customSets: Record<string, CustomSet>;
+  outcomeLabels: Record<string, string>;
 }
 
 export const DiceRoll: Module<DiceRollConfig> = (() => {
-  interface DiceRollOutcomes {
-    S: string;
-    s: string;
-    p: string;
-    f: string;
-    F: string;
-    [key: string]: string;
-  }
-
-  const OUTCOME_LABELS: DiceRollOutcomes = {
+  const DEFAULT_OUTCOME_LABELS: Record<string, string> = {
     S: "Critical Success!",
     s: "Success",
     p: "Partial Success",
@@ -42,12 +34,20 @@ export const DiceRoll: Module<DiceRollConfig> = (() => {
       triggers: arrayValidator<string>(raw, "triggers"),
       default: arrayValidator<string>(raw, "default"),
       customSets: objectValidator<Record<string, CustomSet>>(raw, "customsets"),
+      outcomeLabels: objectValidator<Record<string, string>>(
+        raw,
+        "outcomelabels",
+        DEFAULT_OUTCOME_LABELS
+      ),
     };
   }
 
-  function roll(outcomes: string[]): string {
+  function roll(
+    outcomes: string[],
+    labels: Record<string, string>
+  ): string {
     const outcome = outcomes[Math.floor(Math.random() * outcomes.length)];
-    const label = outcome ? OUTCOME_LABELS[outcome] || outcome : "Unknown";
+    const label = outcome ? labels[outcome] || outcome : "Unknown";
     return `[🎲 Dice Roll: ${label}]`;
   }
 
@@ -73,7 +73,7 @@ export const DiceRoll: Module<DiceRollConfig> = (() => {
 
       const match = text.match(regex);
       if (match) {
-        const outcome = roll(setData.outcomes);
+        const outcome = roll(setData.outcomes, config.outcomeLabels);
         return text.replace(match[0], `${match[0].trim()} ${outcome}`);
       }
     }
@@ -85,7 +85,7 @@ export const DiceRoll: Module<DiceRollConfig> = (() => {
 
     const match = text.match(defaultRegex);
     if (match && config.default.length) {
-      const outcome = roll(config.default);
+      const outcome = roll(config.default, config.outcomeLabels);
       return text.replace(match[0], `${match[0].trim()} ${outcome}`);
     }
 
@@ -100,6 +100,13 @@ Enable: true  # Enable/disable dice rolling
 Triggers: try, attempt, cast, attack, shoot, throw, brace yourself
 # Default probability distribution (S=Crit Success, s=Success, p=Partial, f=Fail, F=Crit Fail):
 Default: S s s s p f f F
+# Outcome labels (customize the text for each outcome):
+OutcomeLabels:
+  S: Critical Success!
+  s: Success
+  p: Partial Success
+  f: Failure
+  F: Critical Failure!
 # Custom probability sets:
 Confident: S S s s s p p f f
 Unconfident: s s p p f f f F F

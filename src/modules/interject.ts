@@ -20,8 +20,8 @@ export const Interject: Module<InterjectConfig> = (() => {
   function validateConfig(raw: Record<string, unknown>): InterjectConfig {
     return {
       enable: booleanValidator(raw, "enable"),
-      maxTurns: numberValidator(raw, "maxTurns", { min: 1 }, 3),
-      remainingTurns: numberValidator(raw, "remainingTurns", { min: 0 }, 0),
+      maxTurns: numberValidator(raw, "maxturns", { min: 1 }, 3),
+      remainingTurns: numberValidator(raw, "remainingturns", { min: 0 }, 0),
     };
   }
 
@@ -40,7 +40,11 @@ export const Interject: Module<InterjectConfig> = (() => {
     return lines.slice(contentStartIdx).join("\n").trim();
   }
 
-  function onContext(text: string, config: InterjectConfig, context: HookContext): string {
+  function onContext(
+    text: string,
+    config: InterjectConfig,
+    context: HookContext
+  ): string {
     if (!config.enable) {
       return text;
     }
@@ -61,7 +65,8 @@ export const Interject: Module<InterjectConfig> = (() => {
       context.state.remainingTurns = config.maxTurns;
     }
 
-    text += "<SYSTEM MESSAGE> Please keep in mind: " + content + "</SYSTEM MESSAGE>";
+    text +=
+      "<SYSTEM MESSAGE> Please keep in mind: " + content + "</SYSTEM MESSAGE>";
 
     context.state.remainingTurns = (context.state.remainingTurns as number) - 1;
 

@@ -9,6 +9,8 @@ Worldsmythe's FoxTweaks script for AI Dungeon.
     - [Paragraph](#paragraph)
     - [Redundancy](#redundancy)
     - [Better You](#better-you)
+    - [Narrative Checklist](#narrative-checklist)
+    - [Markdown Headers](#markdown-headers)
     - [Unified configuration system](#unified-configuration-system)
   - [Scenario Installation](#scenario-installation)
   - [For Developers](#for-developers)
@@ -24,6 +26,8 @@ Worldsmythe's FoxTweaks script for AI Dungeon.
 - **Paragraph**: Formatting and indentation control (ported from Eliterose's [Paragraph Fix](https://github.com/Eliterose19/Paragraph-Fix) to fit in the unified configuration system)
 - **Redundancy**: Detection and merging of redundant AI outputs (with fuzzy matching, by me)
 - **Better You**: Pronoun replacement for better narrative flow that hasn't been fixed in over a year (by me)
+- **Narrative Checklist**: Track story objectives with AI-powered completion detection
+- **Markdown Headers**: Replace plain text context headers with markdown formatting
 
 ### Dice Roll
 
@@ -68,6 +72,28 @@ Replace the AI's pronouns with more appropriate ones. Covers the following cases
 - "Mine" -> "Yours"
 - ". you" -> ". You"
 - '". you" -> '". You"
+
+### Narrative Checklist
+
+Track story objectives and plot points with automatic AI-powered completion detection. Create a checklist of narrative goals, and the AI will periodically check if any items have been completed based on the story progression. The checklist is automatically injected into context to keep the AI focused on your story goals.
+
+Features:
+
+- Markdown checklist format (`- [ ]` unchecked, `- [x]` checked)
+- Configurable turn interval for AI completion checks
+- Automatic context injection (can be toggled)
+- Context size management (truncates Recent Story if needed)
+- Persistent tracking across story sessions
+
+### Markdown Headers
+
+Automatically converts plain text context headers into markdown format for better readability and organization. Uses stack-based bracket matching to properly handle Author's Note formatting.
+
+Examples:
+
+- `World Lore:` → `## World Lore`
+- `Story Summary:` → `## Story Summary`
+- `[Author's note: content here]` → `### Author's Note:\ncontent here`
 
 ### Unified configuration system
 
@@ -124,7 +150,28 @@ Replacements:
   Mine: Yours
   . you: . You
   ." you: ." You
+
+--- Markdown Headers ---
+Enable: true  # Replace plain text headers with markdown
+HeaderLevel: ##  # Markdown header level (## or ###)
+
+--- Narrative Checklist ---
+Enable: true  # Enable narrative checklist tracking
+MinTurnsBeforeCheck: 50  # Minimum turns between AI completion checks
+RemainingTurns: 50  # Turns remaining until next check
+AlwaysIncludeInContext: true  # Always include checklist in context
+MinContextChars: 2000  # Minimum characters to preserve for recent story
 ```
+
+To use the Narrative Checklist, create a story card titled "Narrative Checklist" with your objectives:
+
+```markdown
+- [ ] Find the ancient artifact
+- [ ] Defeat the dragon
+- [ ] Return to the village
+```
+
+The AI will automatically check for completed items every few turns and mark them as done (`- [x]`).
 
 ## Scenario Installation
 
@@ -132,19 +179,22 @@ Replacements:
 2. Add the following to your "Input" modifier:
 
 ```javascript
-text = FoxTweaks.Hooks.onInput({ text });
+text = FoxTweaks.Hooks.onInput(text);
 ```
 
 3. Add the following to your "Context" modifier:
 
 ```javascript
-text = FoxTweaks.Hooks.onContext({ text });
+text = FoxTweaks.Hooks.onContext(text);
+
+// Place this below all other context modifiers
+text = FoxTweaks.Hooks.reformatContext(text);
 ```
 
 4. Add the following to your "Output" modifier:
 
 ```javascript
-text = FoxTweaks.Hooks.onOutput({ text });
+text = FoxTweaks.Hooks.onOutput(text);
 ```
 
 ## For Developers

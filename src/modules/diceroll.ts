@@ -1,6 +1,10 @@
 import type { Module, HookContext } from "../types";
 import { escapeRegex } from "../utils/string";
-import { booleanValidator, arrayValidator, objectValidator } from "../utils/validation";
+import {
+  booleanValidator,
+  arrayValidator,
+  objectValidator,
+} from "../utils/validation";
 
 interface CustomSet {
   outcomes: string[];
@@ -37,7 +41,7 @@ export const DiceRoll: Module<DiceRollConfig> = (() => {
       enable: booleanValidator(raw, "enable"),
       triggers: arrayValidator<string>(raw, "triggers"),
       default: arrayValidator<string>(raw, "default"),
-      customSets: objectValidator<Record<string, CustomSet>>(raw, "customSets"),
+      customSets: objectValidator<Record<string, CustomSet>>(raw, "customsets"),
     };
   }
 
@@ -47,7 +51,11 @@ export const DiceRoll: Module<DiceRollConfig> = (() => {
     return `[🎲 Dice Roll: ${label}]`;
   }
 
-  function onInput(text: string, config: DiceRollConfig, context: HookContext): string {
+  function onInput(
+    text: string,
+    config: DiceRollConfig,
+    context: HookContext
+  ): string {
     if (!config.enable || !config.triggers.length) {
       return text;
     }

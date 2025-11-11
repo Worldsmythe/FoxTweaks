@@ -16,8 +16,8 @@ export const Paragraph: Module<ParagraphConfig> = (() => {
   function validateConfig(raw: Record<string, unknown>): ParagraphConfig {
     return {
       enable: booleanValidator(raw, "enable"),
-      formattingType: enumValidator(raw, "formattingType", FORMATTING_TYPES, "none"),
-      indentParagraphs: booleanValidator(raw, "indentParagraphs"),
+      formattingType: enumValidator(raw, "formattingtype", FORMATTING_TYPES, "none"),
+      indentParagraphs: booleanValidator(raw, "indentparagraphs"),
     };
   }
 

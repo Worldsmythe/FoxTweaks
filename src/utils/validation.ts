@@ -1,3 +1,5 @@
+import { parseBool } from "./string";
+
 /**
  * Validates and extracts a boolean value from raw config
  * @param raw - Raw config object
@@ -10,7 +12,14 @@ export function booleanValidator(
   key: string,
   defaultValue = false
 ): boolean {
-  return typeof raw[key] === "boolean" ? raw[key] : defaultValue;
+  const value = raw[key];
+  if (typeof value === "boolean") {
+    return value;
+  }
+  if (typeof value === "string") {
+    return parseBool(value);
+  }
+  return defaultValue;
 }
 
 /**
@@ -42,11 +51,19 @@ export function numberValidator(
   options: { min?: number; max?: number; integer?: boolean } = {},
   defaultValue = 0
 ): number {
-  if (typeof raw[key] !== "number" || Number.isNaN(raw[key] as number)) {
+  let value: number;
+
+  if (typeof raw[key] === "number") {
+    value = raw[key] as number;
+  } else if (typeof raw[key] === "string") {
+    value = options.integer ? parseInt(raw[key] as string, 10) : parseFloat(raw[key] as string);
+  } else {
     return defaultValue;
   }
 
-  let value = raw[key] as number;
+  if (Number.isNaN(value)) {
+    return defaultValue;
+  }
 
   if (options.integer) {
     value = Math.floor(value);
@@ -96,7 +113,21 @@ export function arrayValidator<T>(
   key: string,
   defaultValue: T[] = []
 ): T[] {
-  return Array.isArray(raw[key]) ? (raw[key] as T[]) : defaultValue;
+  const value = raw[key];
+
+  if (Array.isArray(value)) {
+    return value as T[];
+  }
+
+  if (typeof value === "string") {
+    if (value.includes(",")) {
+      return value.split(",").map((s) => s.trim()).filter(Boolean) as T[];
+    } else {
+      return value.split(/\s+/).filter(Boolean) as T[];
+    }
+  }
+
+  return defaultValue;
 }
 
 /**

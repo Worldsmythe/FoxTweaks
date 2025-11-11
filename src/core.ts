@@ -1,13 +1,24 @@
-import type { Module, StoryCard } from "./types";
+import type { Module, StoryCard, AIPromptRequest } from "./types";
 import { parseConfig, parseConfigLine, rebuildConfigLine } from "./config";
 import { findCard, createStoryCard } from "./utils/cards";
 import { getDefaultInterjectEntry } from "./modules/interject";
+import { DEBUG } from "./debug" with { type: "macro" };
+
+declare function log(message: string): void;
 
 const CARD_TITLE = "FoxTweaks Config";
 const CARD_KEYS = "Configure FoxTweaks behavior";
 
+interface GlobalAIState {
+  activePrompt: AIPromptRequest | null;
+  promptQueue: AIPromptRequest[];
+  promptIdCounter: number;
+  responses: Record<string, string>;
+}
+
 interface ModuleState {
-  [key: string]: Record<string, unknown>;
+  __foxTweaksAI?: GlobalAIState;
+  [key: string]: Record<string, unknown> | GlobalAIState | undefined;
 }
 
 /**
@@ -15,8 +26,31 @@ interface ModuleState {
  */
 export class FoxTweaks {
   private modules: Module<unknown>[] = [];
-  private moduleStates: ModuleState = {};
   private cachedConfig: Record<string, unknown> | null = null;
+
+  private getGlobalState(): ModuleState {
+    const globalState = (globalThis as any).state;
+    if (!globalState) {
+      throw new Error("Global state object not available");
+    }
+    if (!globalState.foxTweaks) {
+      globalState.foxTweaks = {};
+    }
+    return globalState.foxTweaks;
+  }
+
+  private getAIState(): GlobalAIState {
+    const globalState = this.getGlobalState();
+    if (!globalState.__foxTweaksAI) {
+      globalState.__foxTweaksAI = {
+        activePrompt: null,
+        promptQueue: [],
+        promptIdCounter: 0,
+        responses: {},
+      };
+    }
+    return globalState.__foxTweaksAI as GlobalAIState;
+  }
 
   /**
    * Registers a module with FoxTweaks
@@ -24,12 +58,6 @@ export class FoxTweaks {
    */
   registerModule<T>(module: Module<T>): void {
     this.modules.push(module as Module<unknown>);
-
-    if (module.initialState) {
-      this.moduleStates[module.name] = { ...module.initialState };
-    } else {
-      this.moduleStates[module.name] = {};
-    }
   }
 
   /**
@@ -38,10 +66,17 @@ export class FoxTweaks {
    * @returns The module's state object
    */
   getModuleState(moduleName: string): Record<string, unknown> {
-    if (!this.moduleStates[moduleName]) {
-      this.moduleStates[moduleName] = {};
+    if (moduleName === "__foxTweaksAI") {
+      return {};
     }
-    return this.moduleStates[moduleName];
+    const globalState = this.getGlobalState();
+    if (!globalState[moduleName]) {
+      const module = this.modules.find((m) => m.name === moduleName);
+      globalState[moduleName] = module?.initialState
+        ? { ...module.initialState }
+        : {};
+    }
+    return globalState[moduleName] as Record<string, unknown>;
   }
 
   /**
@@ -126,18 +161,42 @@ export class FoxTweaks {
    */
   loadConfig<T extends Record<string, unknown>>(): T {
     if (this.cachedConfig) {
+      if (DEBUG()) {
+        log(`[FoxTweaks] Using cached config`);
+      }
       return this.cachedConfig as T;
     }
 
+    if (DEBUG()) {
+      log(`[FoxTweaks] Loading config from card...`);
+    }
     const card = this.ensureConfigCard();
     if (!card) {
+      if (DEBUG()) {
+        log(`[FoxTweaks] No config card found, using defaults`);
+      }
       const defaults = this.getDefaultSections();
       const defaultConfig = Object.values(defaults).join("\n\n");
       this.cachedConfig = parseConfig(defaultConfig, this.modules);
       return this.cachedConfig as T;
     }
 
+    if (DEBUG()) {
+      log(
+        `[FoxTweaks] Parsing config from card description (${(card.description || "").length} chars)`
+      );
+    }
     this.cachedConfig = parseConfig(card.description || "", this.modules);
+
+    if ((this.cachedConfig as any).narrativeChecklist) {
+      const nc = (this.cachedConfig as any).narrativeChecklist;
+      if (DEBUG()) {
+        log(
+          `[FoxTweaks] Parsed narrativeChecklist config: remainingTurns=${nc.remainingTurns}, minTurnsBeforeCheck=${nc.minTurnsBeforeCheck}`
+        );
+      }
+    }
+
     return this.cachedConfig as T;
   }
 
@@ -148,32 +207,69 @@ export class FoxTweaks {
    * @param value - New value
    */
   updateConfigValue(sectionName: string, key: string, value: unknown): void {
+    if (DEBUG()) {
+      log(
+        `[FoxTweaks] updateConfigValue called: section="${sectionName}", key="${key}", value="${value}"`
+      );
+    }
     const card = findCard(CARD_TITLE);
-    if (!card) return;
+    if (!card) {
+      if (DEBUG()) {
+        log(`[FoxTweaks] ERROR: Config card not found (title="${CARD_TITLE}")`);
+      }
+      return;
+    }
 
     const lines = (card.description || "").split("\n");
     let inSection = false;
+    let updated = false;
 
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i];
       if (!line) continue;
 
       if (line.trim().startsWith("---")) {
-        inSection = line.toLowerCase().includes(sectionName.toLowerCase());
+        const normalizedLine = line.toLowerCase().replace(/\s+/g, "");
+        const normalizedSection = sectionName.toLowerCase().replace(/\s+/g, "");
+        inSection = normalizedLine.includes(normalizedSection);
+        if (inSection) {
+          if (DEBUG()) {
+            log(
+              `[FoxTweaks] Found section: ${line} (normalized match: "${normalizedLine}" includes "${normalizedSection}")`
+            );
+          }
+        }
         continue;
       }
 
       if (inSection) {
         const parsed = parseConfigLine(line);
         if (parsed.isValid && parsed.key.toLowerCase() === key.toLowerCase()) {
-          lines[i] = rebuildConfigLine(
+          const newLine = rebuildConfigLine(
             parsed.key,
             String(value),
             parsed.comment,
             parsed.hasComment
           );
+          if (DEBUG()) {
+            log(`[FoxTweaks] Updating line ${i}: "${line}" -> "${newLine}"`);
+          }
+          lines[i] = newLine;
+          updated = true;
           break;
         }
+      }
+    }
+
+    if (!updated) {
+      if (DEBUG()) {
+        log(
+          `[FoxTweaks] WARNING: Key "${key}" not found in section "${sectionName}"`
+        );
+      }
+    } else {
+      if (DEBUG()) {
+        log(`[FoxTweaks] Successfully updated config card`);
       }
     }
 
@@ -183,13 +279,72 @@ export class FoxTweaks {
 
   /**
    * Creates hook functions that orchestrate all registered modules
-   * @returns Object containing onInput, onContext, and onOutput hooks
+   * @returns Object containing onInput, onContext, onOutput, and reformatContext hooks
    */
   createHooks(): {
     onInput: (text: string) => string;
     onContext: (text: string) => string;
     onOutput: (text: string) => string;
+    reformatContext: (text: string) => string;
   } {
+    const isAutoCardsActive = (): boolean => {
+      const globalState = (globalThis as any).state;
+      if (!globalState) return false;
+
+      return !!(
+        globalState.AC?.signal?.generate ||
+        globalState.AC?.generation?.queue?.length > 0 ||
+        globalState.AC?.signal?.compress
+      );
+    };
+
+    const createAIContext = (moduleName: string) => {
+      const aiState = this.getAIState();
+
+      return {
+        requestPrompt: (prompt: string, responseMarker: string) => {
+          if (!aiState.promptQueue) {
+            aiState.promptQueue = [];
+          }
+          if (!aiState.promptIdCounter) {
+            aiState.promptIdCounter = 0;
+          }
+
+          const request: AIPromptRequest = {
+            id: `ai_prompt_${aiState.promptIdCounter++}`,
+            moduleName,
+            prompt,
+            responseMarker,
+          };
+
+          if (isAutoCardsActive()) {
+            aiState.promptQueue.push(request);
+            return;
+          }
+
+          if (aiState.activePrompt) {
+            aiState.promptQueue.push(request);
+            return;
+          }
+
+          aiState.activePrompt = request;
+        },
+        hasActivePrompt: () => aiState.activePrompt !== null,
+        getResponse: (responseMarker: string) => {
+          if (!aiState.responses) {
+            aiState.responses = {};
+          }
+          return aiState.responses[responseMarker] || null;
+        },
+        clearResponse: (responseMarker: string) => {
+          if (!aiState.responses) {
+            aiState.responses = {};
+          }
+          delete aiState.responses[responseMarker];
+        },
+      };
+    };
+
     const onInput = (text: string): string => {
       if (!text) {
         return text;
@@ -207,15 +362,20 @@ export class FoxTweaks {
           const moduleConfig = config[module.name];
           if (moduleConfig !== undefined) {
             const context = {
-              state: this.moduleStates[module.name] || {},
+              state: this.getModuleState(module.name),
               updateConfig: (key: string, value: unknown) => {
                 this.updateConfigValue(module.name, key, value);
               },
               history: globalHistory,
               storyCards: globalStoryCards,
               info: globalInfo,
+              ai: createAIContext(module.name),
             };
-            currentText = module.hooks.onInput(currentText, moduleConfig, context);
+            currentText = module.hooks.onInput(
+              currentText,
+              moduleConfig,
+              context
+            );
           }
         }
       }
@@ -240,15 +400,96 @@ export class FoxTweaks {
           const moduleConfig = config[module.name];
           if (moduleConfig !== undefined) {
             const context = {
-              state: this.moduleStates[module.name] || {},
+              state: this.getModuleState(module.name),
               updateConfig: (key: string, value: unknown) => {
                 this.updateConfigValue(module.name, key, value);
               },
               history: globalHistory,
               storyCards: globalStoryCards,
               info: globalInfo,
+              ai: createAIContext(module.name),
             };
-            currentText = module.hooks.onContext(currentText, moduleConfig, context);
+            currentText = module.hooks.onContext(
+              currentText,
+              moduleConfig,
+              context
+            );
+          }
+        }
+      }
+
+      const aiState = this.getAIState();
+
+      if (!isAutoCardsActive() && aiState.activePrompt) {
+        currentText = currentText + aiState.activePrompt.prompt;
+      }
+
+      return currentText;
+    };
+
+    const onOutput = (text: string): string => {
+      if (!text) {
+        return text;
+      }
+
+      let currentText = text;
+      const aiState = this.getAIState();
+
+      if (aiState.activePrompt) {
+        const { responseMarker } = aiState.activePrompt;
+        const markerPattern = new RegExp(
+          `${responseMarker}:\\s*([^\\n]+)`,
+          "i"
+        );
+        const match = currentText.match(markerPattern);
+
+        if (match && match[1]) {
+          if (!aiState.responses) {
+            aiState.responses = {};
+          }
+          aiState.responses[responseMarker] = match[1].trim();
+
+          currentText = currentText.replace(
+            new RegExp(`${responseMarker}:[^\\n]+\\n?`, "gi"),
+            ""
+          );
+        }
+
+        aiState.activePrompt = null;
+
+        if (
+          !isAutoCardsActive() &&
+          aiState.promptQueue &&
+          aiState.promptQueue.length > 0
+        ) {
+          aiState.activePrompt = aiState.promptQueue.shift() || null;
+        }
+      }
+
+      const config = this.loadConfig();
+      const globalHistory = (globalThis as any).history || [];
+      const globalStoryCards = (globalThis as any).worldInfo || [];
+      const globalInfo = (globalThis as any).info || {};
+
+      for (const module of this.modules) {
+        if (module.hooks.onOutput) {
+          const moduleConfig = config[module.name];
+          if (moduleConfig !== undefined) {
+            const context = {
+              state: this.getModuleState(module.name),
+              updateConfig: (key: string, value: unknown) => {
+                this.updateConfigValue(module.name, key, value);
+              },
+              history: globalHistory,
+              storyCards: globalStoryCards,
+              info: globalInfo,
+              ai: createAIContext(module.name),
+            };
+            currentText = module.hooks.onOutput(
+              currentText,
+              moduleConfig,
+              context
+            );
           }
         }
       }
@@ -256,7 +497,7 @@ export class FoxTweaks {
       return currentText;
     };
 
-    const onOutput = (text: string): string => {
+    const reformatContext = (text: string): string => {
       if (!text) {
         return text;
       }
@@ -269,19 +510,24 @@ export class FoxTweaks {
       const globalInfo = (globalThis as any).info || {};
 
       for (const module of this.modules) {
-        if (module.hooks.onOutput) {
+        if (module.hooks.onReformatContext) {
           const moduleConfig = config[module.name];
           if (moduleConfig !== undefined) {
             const context = {
-              state: this.moduleStates[module.name] || {},
+              state: this.getModuleState(module.name),
               updateConfig: (key: string, value: unknown) => {
                 this.updateConfigValue(module.name, key, value);
               },
               history: globalHistory,
               storyCards: globalStoryCards,
               info: globalInfo,
+              ai: createAIContext(module.name),
             };
-            currentText = module.hooks.onOutput(currentText, moduleConfig, context);
+            currentText = module.hooks.onReformatContext(
+              currentText,
+              moduleConfig,
+              context
+            );
           }
         }
       }
@@ -289,6 +535,6 @@ export class FoxTweaks {
       return currentText;
     };
 
-    return { onInput, onContext, onOutput };
+    return { onInput, onContext, onOutput, reformatContext };
   }
 }

@@ -14,7 +14,7 @@ export const Redundancy: Module<RedundancyConfig> = (() => {
       enable: booleanValidator(raw, "enable"),
       similarityThreshold: numberValidator(
         raw,
-        "similarityThreshold",
+        "similaritythreshold",
         { min: 0, max: 100, integer: true },
         70
       ),

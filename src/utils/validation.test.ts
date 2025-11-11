@@ -24,8 +24,9 @@ describe("booleanValidator", () => {
       expect(booleanValidator({}, "enable")).toBe(false);
     });
 
-    it("should return default when value is string", () => {
-      expect(booleanValidator({ enable: "true" }, "enable")).toBe(false);
+    it("should parse valid string values", () => {
+      expect(booleanValidator({ enable: "true" }, "enable")).toBe(true);
+      expect(booleanValidator({ enable: "false" }, "enable")).toBe(false);
     });
 
     it("should return default when value is number", () => {
@@ -130,8 +131,9 @@ describe("numberValidator", () => {
       expect(numberValidator({}, "count")).toBe(0);
     });
 
-    it("should return default when value is string", () => {
-      expect(numberValidator({ count: "42" }, "count")).toBe(0);
+    it("should parse valid string values", () => {
+      expect(numberValidator({ count: "42" }, "count")).toBe(42);
+      expect(numberValidator({ count: "3.14" }, "count")).toBe(3.14);
     });
 
     it("should return default when value is boolean", () => {
@@ -364,8 +366,16 @@ describe("arrayValidator", () => {
       expect(arrayValidator({}, "items")).toEqual([]);
     });
 
-    it("should return default when value is string", () => {
-      expect(arrayValidator({ items: "not array" }, "items")).toEqual([]);
+    it("should parse comma-separated string", () => {
+      expect(arrayValidator({ items: "a, b, c" }, "items")).toEqual(["a", "b", "c"]);
+    });
+
+    it("should parse space-separated string", () => {
+      expect(arrayValidator({ items: "a b c" }, "items")).toEqual(["a", "b", "c"]);
+    });
+
+    it("should parse single value string", () => {
+      expect(arrayValidator({ items: "single" }, "items")).toEqual(["single"]);
     });
 
     it("should return default when value is number", () => {

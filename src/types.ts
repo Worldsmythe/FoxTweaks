@@ -13,6 +13,20 @@ export interface StoryCard {
   updatedAt?: string;
 }
 
+export interface AIPromptRequest {
+  id: string;
+  moduleName: string;
+  prompt: string;
+  responseMarker: string;
+}
+
+export interface AIPromptContext {
+  requestPrompt: (prompt: string, responseMarker: string) => void;
+  hasActivePrompt: () => boolean;
+  getResponse: (responseMarker: string) => string | null;
+  clearResponse: (responseMarker: string) => void;
+}
+
 /**
  * Context provided to hook functions with utilities and state
  */
@@ -41,6 +55,11 @@ export interface HookContext {
    * Additional metadata about the current action
    */
   info: import("ai-dungeon-sdk").Info;
+
+  /**
+   * AI prompt injection system
+   */
+  ai: AIPromptContext;
 }
 
 /**
@@ -65,6 +84,7 @@ export interface ModuleHooks<TConfig> {
   onInput?: HookFunction<TConfig>;
   onContext?: HookFunction<TConfig>;
   onOutput?: HookFunction<TConfig>;
+  onReformatContext?: HookFunction<TConfig>;
 }
 
 /**
@@ -116,4 +136,23 @@ export interface ParsedConfigLine {
   comment: string;
   hasComment: boolean;
   isValid: boolean;
+}
+
+/**
+ * Represents a section of context with its position and content
+ */
+export interface ContextSection {
+  name: string;
+  header: string;
+  startIndex: number;
+  endIndex: number;
+  content: string;
+}
+
+/**
+ * State object passed through the context reformatting pipeline
+ */
+export interface ContextPipelineState {
+  sections: ContextSection[];
+  fullText: string;
 }

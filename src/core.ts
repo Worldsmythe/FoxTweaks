@@ -1,4 +1,4 @@
-import type { Module, StoryCard, HookParams, HookReturn } from "./types";
+import type { Module, StoryCard } from "./types";
 import { parseConfig, parseConfigLine, rebuildConfigLine } from "./config";
 import { findCard, createStoryCard } from "./utils/cards";
 import { getDefaultInterjectEntry } from "./modules/interject";
@@ -186,17 +186,21 @@ export class FoxTweaks {
    * @returns Object containing onInput, onContext, and onOutput hooks
    */
   createHooks(): {
-    onInput: (params: HookParams) => HookReturn;
-    onContext: (params: HookParams) => HookReturn;
-    onOutput: (params: HookParams) => HookReturn;
+    onInput: (text: string) => string;
+    onContext: (text: string) => string;
+    onOutput: (text: string) => string;
   } {
-    const onInput = (params: HookParams): HookReturn => {
-      if (!params.text) {
-        return params;
+    const onInput = (text: string): string => {
+      if (!text) {
+        return text;
       }
 
       const config = this.loadConfig();
-      let currentParams = params;
+      let currentText = text;
+
+      const globalHistory = (globalThis as any).history || [];
+      const globalStoryCards = (globalThis as any).worldInfo || [];
+      const globalInfo = (globalThis as any).info || {};
 
       for (const module of this.modules) {
         if (module.hooks.onInput) {
@@ -207,23 +211,29 @@ export class FoxTweaks {
               updateConfig: (key: string, value: unknown) => {
                 this.updateConfigValue(module.name, key, value);
               },
+              history: globalHistory,
+              storyCards: globalStoryCards,
+              info: globalInfo,
             };
-            const hookResult = module.hooks.onInput(currentParams, moduleConfig, context);
-            currentParams = { ...currentParams, ...hookResult };
+            currentText = module.hooks.onInput(currentText, moduleConfig, context);
           }
         }
       }
 
-      return currentParams;
+      return currentText;
     };
 
-    const onContext = (params: HookParams): HookReturn => {
-      if (!params.text) {
-        return params;
+    const onContext = (text: string): string => {
+      if (!text) {
+        return text;
       }
 
       const config = this.loadConfig();
-      let currentParams = params;
+      let currentText = text;
+
+      const globalHistory = (globalThis as any).history || [];
+      const globalStoryCards = (globalThis as any).worldInfo || [];
+      const globalInfo = (globalThis as any).info || {};
 
       for (const module of this.modules) {
         if (module.hooks.onContext) {
@@ -234,23 +244,29 @@ export class FoxTweaks {
               updateConfig: (key: string, value: unknown) => {
                 this.updateConfigValue(module.name, key, value);
               },
+              history: globalHistory,
+              storyCards: globalStoryCards,
+              info: globalInfo,
             };
-            const hookResult = module.hooks.onContext(currentParams, moduleConfig, context);
-            currentParams = { ...currentParams, ...hookResult };
+            currentText = module.hooks.onContext(currentText, moduleConfig, context);
           }
         }
       }
 
-      return currentParams;
+      return currentText;
     };
 
-    const onOutput = (params: HookParams): HookReturn => {
-      if (!params.text) {
-        return params;
+    const onOutput = (text: string): string => {
+      if (!text) {
+        return text;
       }
 
       const config = this.loadConfig();
-      let currentParams = params;
+      let currentText = text;
+
+      const globalHistory = (globalThis as any).history || [];
+      const globalStoryCards = (globalThis as any).worldInfo || [];
+      const globalInfo = (globalThis as any).info || {};
 
       for (const module of this.modules) {
         if (module.hooks.onOutput) {
@@ -261,14 +277,16 @@ export class FoxTweaks {
               updateConfig: (key: string, value: unknown) => {
                 this.updateConfigValue(module.name, key, value);
               },
+              history: globalHistory,
+              storyCards: globalStoryCards,
+              info: globalInfo,
             };
-            const hookResult = module.hooks.onOutput(currentParams, moduleConfig, context);
-            currentParams = { ...currentParams, ...hookResult };
+            currentText = module.hooks.onOutput(currentText, moduleConfig, context);
           }
         }
       }
 
-      return currentParams;
+      return currentText;
     };
 
     return { onInput, onContext, onOutput };

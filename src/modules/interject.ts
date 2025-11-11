@@ -1,4 +1,4 @@
-import type { Module, HookParams, HookReturn, StoryCard, HookContext } from "../types";
+import type { Module, StoryCard, HookContext } from "../types";
 import { findCard } from "../utils/cards";
 import { booleanValidator, numberValidator } from "../utils/validation";
 
@@ -40,19 +40,19 @@ export const Interject: Module<InterjectConfig> = (() => {
     return lines.slice(contentStartIdx).join("\n").trim();
   }
 
-  function onContext(params: HookParams, config: InterjectConfig, context: HookContext): HookReturn {
+  function onContext(text: string, config: InterjectConfig, context: HookContext): string {
     if (!config.enable) {
-      return params;
+      return text;
     }
 
     const card = findCard(CARD_TITLE);
     if (!card) {
-      return params;
+      return text;
     }
 
     const content = getContent(card);
     if (!content) {
-      return params;
+      return text;
     }
 
     const remainingTurns = (context.state.remainingTurns as number) || 0;
@@ -61,9 +61,7 @@ export const Interject: Module<InterjectConfig> = (() => {
       context.state.remainingTurns = config.maxTurns;
     }
 
-    let { text } = params;
-    text +=
-      "<SYSTEM MESSAGE> Please keep in mind: " + content + "</SYSTEM MESSAGE>";
+    text += "<SYSTEM MESSAGE> Please keep in mind: " + content + "</SYSTEM MESSAGE>";
 
     context.state.remainingTurns = (context.state.remainingTurns as number) - 1;
 
@@ -73,7 +71,7 @@ export const Interject: Module<InterjectConfig> = (() => {
 
     context.updateConfig("RemainingTurns", context.state.remainingTurns);
 
-    return { ...params, text };
+    return text;
   }
 
   return {

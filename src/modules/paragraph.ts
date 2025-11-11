@@ -1,5 +1,5 @@
-import type { Module, HookParams, HookReturn, History, HookContext } from "../types";
-import { getLastAction, isActionType } from "../utils/history";
+import type { Module, History, HookContext } from "../types";
+import { isActionType } from "../utils/history";
 import { booleanValidator, enumValidator } from "../utils/validation";
 
 type FormattingType = "none" | "basic" | "empty-line" | "newline";
@@ -65,17 +65,14 @@ export const Paragraph: Module<ParagraphConfig> = (() => {
     }
   }
 
-  function onContext(params: HookParams, config: ParagraphConfig, context: HookContext): HookReturn {
-    const text = params.text.replace(/^    /gm, "");
-    return { ...params, text };
+  function onContext(text: string, config: ParagraphConfig, context: HookContext): string {
+    return text.replace(/^    /gm, "");
   }
 
-  function onOutput(params: HookParams, config: ParagraphConfig, context: HookContext): HookReturn {
+  function onOutput(text: string, config: ParagraphConfig, context: HookContext): string {
     if (!config.enable || config.formattingType === "none") {
-      return params;
+      return text;
     }
-
-    let { text } = params;
 
     switch (config.formattingType) {
       case "basic":
@@ -89,14 +86,16 @@ export const Paragraph: Module<ParagraphConfig> = (() => {
         break;
     }
 
-    const prevAction = getLastAction();
+    const prevAction = context.history.length > 0
+      ? (context.history[context.history.length - 1] || null)
+      : null;
     text = adjustNewlines(text, prevAction);
 
     if (config.indentParagraphs) {
       text = applyIndentation(text, prevAction);
     }
 
-    return { ...params, text };
+    return text;
   }
 
   return {

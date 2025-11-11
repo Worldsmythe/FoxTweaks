@@ -1,5 +1,5 @@
-import type { Module, HookParams, HookReturn, HookContext } from "../types";
-import { getLastActionOfType } from "../utils/history";
+import type { Module, HookContext } from "../types";
+import { isActionType } from "../utils/history";
 import { checkAndMerge } from "../utils/similarity";
 import { booleanValidator, numberValidator } from "../utils/validation";
 
@@ -22,31 +22,35 @@ export const Redundancy: Module<RedundancyConfig> = (() => {
   }
 
   function onOutput(
-    params: HookParams,
+    text: string,
     config: RedundancyConfig,
     context: HookContext
-  ): HookReturn {
+  ): string {
     if (!config.enable) {
-      return params;
+      return text;
     }
 
-    const lastAIMessage = getLastActionOfType("continue");
+    const lastAIMessage = context.history
+      .slice()
+      .reverse()
+      .find(action => isActionType(action, ["continue"]));
+
     if (!lastAIMessage) {
-      return params;
+      return text;
     }
 
-    const lastText = lastAIMessage.text || lastAIMessage.rawText || "";
+    const lastText = lastAIMessage.text || "";
     const result = checkAndMerge(
       lastText,
-      params.text,
+      text,
       config.similarityThreshold
     );
 
     if (result.shouldMerge && result.mergedContent) {
-      return { ...params, text: result.mergedContent };
+      return result.mergedContent;
     }
 
-    return params;
+    return text;
   }
 
   return {

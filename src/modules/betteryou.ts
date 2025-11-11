@@ -1,4 +1,4 @@
-import type { Module, HookParams, HookReturn, HookContext } from "../types";
+import type { Module, HookContext } from "../types";
 import { escapeRegex } from "../utils/string";
 import { booleanValidator, objectValidator } from "../utils/validation";
 
@@ -43,12 +43,12 @@ export const BetterYou: Module<BetterYouConfig> = (() => {
     return parts.join('"');
   }
 
-  function onInput(params: HookParams, config: BetterYouConfig, context: HookContext): HookReturn {
+  function onInput(text: string, config: BetterYouConfig, context: HookContext): string {
     if (!config.enable || Object.keys(config.replacements).length === 0) {
-      return params;
+      return text;
     }
 
-    const lines = params.text.split("\n");
+    const lines = text.split("\n");
 
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i];
@@ -61,7 +61,7 @@ export const BetterYou: Module<BetterYouConfig> = (() => {
       lines[i] = replaceOutsideQuotes(line, config.replacements);
     }
 
-    return { ...params, text: lines.join("\n") };
+    return lines.join("\n");
   }
 
   return {

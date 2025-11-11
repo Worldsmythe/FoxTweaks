@@ -1,4 +1,4 @@
-export type { HookParams, HookReturn, History, StoryCard as SDKStoryCard } from "ai-dungeon-sdk";
+export type { History, StoryCard as SDKStoryCard } from "ai-dungeon-sdk";
 
 /**
  * Extended StoryCard with custom fields used by FoxTweaks
@@ -26,21 +26,36 @@ export interface HookContext {
    * Updates a configuration value in the config card
    */
   updateConfig: (key: string, value: unknown) => void;
+
+  /**
+   * Recent action history
+   */
+  history: import("ai-dungeon-sdk").History[];
+
+  /**
+   * Available story cards
+   */
+  storyCards: StoryCard[];
+
+  /**
+   * Additional metadata about the current action
+   */
+  info: import("ai-dungeon-sdk").Info;
 }
 
 /**
  * Hook function that processes text with typed configuration
  * @template TConfig - The configuration type for this hook
- * @param params - Parameters from AI Dungeon including text and history
+ * @param text - The text to process
  * @param config - Typed configuration for this hook
- * @param context - Context with state and utilities
- * @returns Modified hook result
+ * @param context - Context with state, utilities, history, and cards
+ * @returns Modified text
  */
 export type HookFunction<TConfig> = (
-  params: import("ai-dungeon-sdk").HookParams,
+  text: string,
   config: TConfig,
   context: HookContext
-) => import("ai-dungeon-sdk").HookReturn;
+) => string;
 
 /**
  * Collection of optional hook functions that a module can implement
@@ -56,7 +71,9 @@ export interface ModuleHooks<TConfig> {
  * Validator function that validates raw config and returns typed config
  * @template TConfig - The configuration type
  */
-export type ConfigValidator<TConfig> = (raw: Record<string, unknown>) => TConfig;
+export type ConfigValidator<TConfig> = (
+  raw: Record<string, unknown>
+) => TConfig;
 
 /**
  * A FoxTweaks module with typed configuration and hooks

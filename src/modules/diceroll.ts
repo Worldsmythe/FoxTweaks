@@ -1,4 +1,4 @@
-import type { Module, HookParams, HookReturn, HookContext } from "../types";
+import type { Module, HookContext } from "../types";
 import { escapeRegex } from "../utils/string";
 import { booleanValidator, arrayValidator, objectValidator } from "../utils/validation";
 
@@ -47,12 +47,11 @@ export const DiceRoll: Module<DiceRollConfig> = (() => {
     return `[🎲 Dice Roll: ${label}]`;
   }
 
-  function onInput(params: HookParams, config: DiceRollConfig, context: HookContext): HookReturn {
+  function onInput(text: string, config: DiceRollConfig, context: HookContext): string {
     if (!config.enable || !config.triggers.length) {
-      return params;
+      return text;
     }
 
-    let { text } = params;
     const triggerPattern = config.triggers.map(escapeRegex).join("|");
 
     for (const [setName, setData] of Object.entries(config.customSets)) {
@@ -67,8 +66,7 @@ export const DiceRoll: Module<DiceRollConfig> = (() => {
       const match = text.match(regex);
       if (match) {
         const outcome = roll(setData.outcomes);
-        text = text.replace(match[0], `${match[0].trim()} ${outcome}`);
-        return { ...params, text };
+        return text.replace(match[0], `${match[0].trim()} ${outcome}`);
       }
     }
 
@@ -80,10 +78,10 @@ export const DiceRoll: Module<DiceRollConfig> = (() => {
     const match = text.match(defaultRegex);
     if (match && config.default.length) {
       const outcome = roll(config.default);
-      text = text.replace(match[0], `${match[0].trim()} ${outcome}`);
+      return text.replace(match[0], `${match[0].trim()} ${outcome}`);
     }
 
-    return { ...params, text };
+    return text;
   }
 
   return {

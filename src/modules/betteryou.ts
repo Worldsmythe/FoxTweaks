@@ -35,7 +35,7 @@ export const BetterYou: Module<BetterYouConfig> = (() => {
       if (part !== undefined) {
         for (const [from, to] of Object.entries(replacements)) {
           const regex = new RegExp(`\\b${escapeRegex(from)}\\b`, "g");
-          parts[i] = part.replace(regex, to);
+          parts[i] = parts[i].replace(regex, to);
         }
       }
     }

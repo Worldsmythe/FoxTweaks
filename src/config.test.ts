@@ -1,12 +1,30 @@
 import { describe, test, expect } from "bun:test";
 import { parseConfig } from "./config";
-import { DiceRoll } from "./modules/diceroll";
-import { Interject } from "./modules/interject";
-import { Paragraph } from "./modules/paragraph";
-import { Redundancy } from "./modules/redundancy";
-import { BetterYou } from "./modules/betteryou";
-import { MarkdownHeaders } from "./modules/markdownHeaders";
-import { NarrativeChecklist } from "./modules/narrativeChecklist";
+import type { Module } from "./types";
+import { DiceRoll, type DiceRollConfig } from "./modules/diceroll";
+import { Interject, type InterjectConfig } from "./modules/interject";
+import { Paragraph, type ParagraphConfig } from "./modules/paragraph";
+import { Redundancy, type RedundancyConfig } from "./modules/redundancy";
+import { BetterYou, type BetterYouConfig } from "./modules/betteryou";
+import {
+  MarkdownHeaders,
+  type MarkdownHeadersConfig,
+} from "./modules/markdownHeaders";
+import {
+  NarrativeChecklist,
+  type NarrativeChecklistConfig,
+} from "./modules/narrativeChecklist";
+
+interface TestConfig {
+  dice: DiceRollConfig;
+  interject: InterjectConfig;
+  paragraph: ParagraphConfig;
+  redundancy: RedundancyConfig;
+  betterYou: BetterYouConfig;
+  markdownHeaders: MarkdownHeadersConfig;
+  narrativeChecklist: NarrativeChecklistConfig;
+  [key: string]: unknown;
+}
 
 const modules = [
   DiceRoll,
@@ -16,36 +34,36 @@ const modules = [
   BetterYou,
   MarkdownHeaders,
   NarrativeChecklist,
-];
+] as Module<unknown>[];
 
 describe("parseConfig - Full String Parsing", () => {
   test("parses DiceRoll default config string", () => {
-    const config = parseConfig(DiceRoll.configSection, modules);
+    const config = parseConfig<TestConfig>(DiceRoll.configSection, modules);
     expect(config.dice.enable).toBe(true);
   });
 
   test("parses Interject default config string", () => {
-    const config = parseConfig(Interject.configSection, modules);
+    const config = parseConfig<TestConfig>(Interject.configSection, modules);
     expect(config.interject.enable).toBe(true);
     expect(config.interject.maxTurns).toBe(3);
     expect(config.interject.remainingTurns).toBe(0);
   });
 
   test("parses Paragraph default config string", () => {
-    const config = parseConfig(Paragraph.configSection, modules);
+    const config = parseConfig<TestConfig>(Paragraph.configSection, modules);
     expect(config.paragraph.enable).toBe(true);
     expect(config.paragraph.formattingType).toBe("none");
     expect(config.paragraph.indentParagraphs).toBe(false);
   });
 
   test("parses Redundancy default config string", () => {
-    const config = parseConfig(Redundancy.configSection, modules);
+    const config = parseConfig<TestConfig>(Redundancy.configSection, modules);
     expect(config.redundancy.enable).toBe(true);
     expect(config.redundancy.similarityThreshold).toBe(70);
   });
 
   test("parses BetterYou default config string", () => {
-    const config = parseConfig(BetterYou.configSection, modules);
+    const config = parseConfig<TestConfig>(BetterYou.configSection, modules);
     expect(config.betterYou.enable).toBe(true);
     expect(config.betterYou.replacements).toEqual({
       me: "you",
@@ -58,13 +76,19 @@ describe("parseConfig - Full String Parsing", () => {
   });
 
   test("parses MarkdownHeaders default config string", () => {
-    const config = parseConfig(MarkdownHeaders.configSection, modules);
+    const config = parseConfig<TestConfig>(
+      MarkdownHeaders.configSection,
+      modules
+    );
     expect(config.markdownHeaders.enable).toBe(true);
     expect(config.markdownHeaders.headerLevel).toBe("##");
   });
 
   test("parses NarrativeChecklist default config string", () => {
-    const config = parseConfig(NarrativeChecklist.configSection, modules);
+    const config = parseConfig<TestConfig>(
+      NarrativeChecklist.configSection,
+      modules
+    );
     expect(config.narrativeChecklist.enable).toBe(true);
     expect(config.narrativeChecklist.minTurnsBeforeCheck).toBe(50);
     expect(config.narrativeChecklist.remainingTurns).toBe(50);
@@ -74,7 +98,7 @@ describe("parseConfig - Full String Parsing", () => {
 
   test("parses all modules combined", () => {
     const allConfigs = modules.map((m) => m.configSection).join("\n\n");
-    const config = parseConfig(allConfigs, modules);
+    const config = parseConfig<TestConfig>(allConfigs, modules);
 
     expect(config.dice.enable).toBe(true);
     expect(config.interject.enable).toBe(true);
@@ -93,7 +117,7 @@ RemainingTurns: 5  # 5 turns until next check
 AlwaysIncludeInContext: false  # Don't always include
 MinContextChars: 1000  # Keep 1000 chars of recent story`;
 
-    const config = parseConfig(userConfig, modules);
+    const config = parseConfig<TestConfig>(userConfig, modules);
     expect(config.narrativeChecklist.enable).toBe(true);
     expect(config.narrativeChecklist.minTurnsBeforeCheck).toBe(10);
     expect(config.narrativeChecklist.remainingTurns).toBe(5);
@@ -102,7 +126,7 @@ MinContextChars: 1000  # Keep 1000 chars of recent story`;
   });
 
   test("handles config with no spaces after colon", () => {
-    const config = parseConfig(
+    const config = parseConfig<TestConfig>(
       `--- Redundancy ---
 Enable:true
 SimilarityThreshold:85`,
@@ -113,7 +137,7 @@ SimilarityThreshold:85`,
   });
 
   test("handles config with extra whitespace", () => {
-    const config = parseConfig(
+    const config = parseConfig<TestConfig>(
       `--- Interject ---
 Enable:    true
 MaxTurns:     5
@@ -126,7 +150,7 @@ RemainingTurns:  2`,
   });
 
   test("ignores invalid section names", () => {
-    const config = parseConfig(
+    const config = parseConfig<TestConfig>(
       `--- Unknown Module ---
 Enable: true
 SomeSetting: 123`,
@@ -136,7 +160,7 @@ SomeSetting: 123`,
   });
 
   test("lowercase key names work correctly", () => {
-    const config = parseConfig(
+    const config = parseConfig<TestConfig>(
       `--- Redundancy ---
 enable: true
 similaritythreshold: 85`,
@@ -202,12 +226,29 @@ RemainingTurns: 50  # Turns remaining until next check
 AlwaysIncludeInContext: true  # Always include checklist in context
 MinContextChars: 2000  # Minimum characters to preserve for recent story`;
 
-    const config = parseConfig(defaultConfig, modules);
+    const config = parseConfig<TestConfig>(defaultConfig, modules);
 
     // Dice
     expect(config.dice.enable).toBe(true);
-    expect(config.dice.triggers).toEqual(["try", "attempt", "cast", "attack", "shoot", "throw", "brace yourself"]);
-    expect(config.dice.default).toEqual(["S", "s", "s", "s", "p", "f", "f", "F"]);
+    expect(config.dice.triggers).toEqual([
+      "try",
+      "attempt",
+      "cast",
+      "attack",
+      "shoot",
+      "throw",
+      "brace yourself",
+    ]);
+    expect(config.dice.default).toEqual([
+      "S",
+      "s",
+      "s",
+      "s",
+      "p",
+      "f",
+      "f",
+      "F",
+    ]);
 
     // Interject
     expect(config.interject.enable).toBe(true);

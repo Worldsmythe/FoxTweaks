@@ -123,7 +123,7 @@ export class FoxTweaks {
         const defaults = this.getDefaultSections();
         const sections = this.getAllModuleNames();
         card.description = sections
-          .map((s) => this.disableConfigSection(defaults[s]))
+          .map((s) => this.disableConfigSection(defaults[s] || ""))
           .join("\n\n");
         card.entry = getDefaultInterjectEntry();
 
@@ -199,7 +199,7 @@ export class FoxTweaks {
         if (repairedDescription) {
           repairedDescription += "\n\n";
         }
-        repairedDescription += this.disableConfigSection(defaults[section]);
+        repairedDescription += this.disableConfigSection(defaults[section] || "");
       }
 
       if (DEBUG()) {

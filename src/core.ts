@@ -104,9 +104,16 @@ export class FoxTweaks {
    * @returns The config card
    */
   private ensureConfigCard(): StoryCard | null {
+    if (DEBUG()) {
+      log(`[FoxTweaks] ensureConfigCard - searching for card with title="${CARD_TITLE}" or keys="${CARD_KEYS}"`);
+    }
+
     let card = findCard(CARD_TITLE) || findCard(CARD_KEYS);
 
     if (!card) {
+      if (DEBUG()) {
+        log(`[FoxTweaks] ensureConfigCard - no card found, creating new one`);
+      }
       createStoryCard(CARD_KEYS);
       card = findCard(CARD_KEYS);
       if (card) {
@@ -115,10 +122,19 @@ export class FoxTweaks {
 
         const defaults = this.getDefaultSections();
         const sections = this.getAllModuleNames();
-        card.description = sections.map((s) => defaults[s]).join("\n\n");
+        card.description = sections
+          .map((s) => this.disableConfigSection(defaults[s]))
+          .join("\n\n");
         card.entry = getDefaultInterjectEntry();
+
+        if (DEBUG()) {
+          log(`[FoxTweaks] ensureConfigCard - created new card with ${sections.length} sections (all disabled)`);
+        }
       }
     } else {
+      if (DEBUG()) {
+        log(`[FoxTweaks] ensureConfigCard - found existing card, repairing config`);
+      }
       this.repairConfig(card);
 
       if (!card.entry || card.entry.trim() === "") {
@@ -130,28 +146,71 @@ export class FoxTweaks {
   }
 
   /**
+   * Disables a config section by setting Enable to false
+   * @param configSection - The config section string
+   * @returns The disabled config section
+   */
+  private disableConfigSection(configSection: string): string {
+    return configSection.replace(
+      /^(\s*Enable:\s*)\S+(.*)$/m,
+      "$1false$2"
+    );
+  }
+
+  /**
    * Repairs config card by adding missing sections
    * @param card - The config card to repair
    */
   private repairConfig(card: StoryCard): void {
-    const config = parseConfig(card.description || "", this.modules);
     const defaults = this.getDefaultSections();
     const allSections = this.getAllModuleNames();
 
-    const foundSections = new Set(Object.keys(config));
+    if (DEBUG()) {
+      log(`[FoxTweaks] repairConfig called - all sections: ${allSections.join(", ")}`);
+    }
+
+    const description = card.description || "";
+    const foundSections = new Set<string>();
+
+    for (const sectionName of allSections) {
+      const sectionHeader = defaults[sectionName]?.match(/^---\s*(.+?)\s*---/)?.[0];
+      if (sectionHeader && description.includes(sectionHeader)) {
+        foundSections.add(sectionName);
+      }
+    }
+
+    if (DEBUG()) {
+      log(`[FoxTweaks] repairConfig - found sections: ${Array.from(foundSections).join(", ")}`);
+    }
+
     const missingSections = allSections.filter((s) => !foundSections.has(s));
+
+    if (DEBUG()) {
+      log(`[FoxTweaks] repairConfig - missing sections: ${missingSections.join(", ")}`);
+    }
 
     if (missingSections.length > 0) {
       let repairedDescription = (card.description || "").trim();
 
       for (const section of missingSections) {
+        if (DEBUG()) {
+          log(`[FoxTweaks] repairConfig - adding section: ${section}`);
+        }
         if (repairedDescription) {
           repairedDescription += "\n\n";
         }
-        repairedDescription += defaults[section];
+        repairedDescription += this.disableConfigSection(defaults[section]);
+      }
+
+      if (DEBUG()) {
+        log(`[FoxTweaks] repairConfig - updated description length: ${repairedDescription.length} (was: ${(card.description || "").length})`);
       }
 
       card.description = repairedDescription;
+    } else {
+      if (DEBUG()) {
+        log(`[FoxTweaks] repairConfig - no missing sections, nothing to add`);
+      }
     }
   }
 
@@ -354,7 +413,7 @@ export class FoxTweaks {
       let currentText = text;
 
       const globalHistory = (globalThis as any).history || [];
-      const globalStoryCards = (globalThis as any).worldInfo || [];
+      const globalStoryCards = (globalThis as any).storyCards || [];
       const globalInfo = (globalThis as any).info || {};
 
       for (const module of this.modules) {
@@ -392,7 +451,7 @@ export class FoxTweaks {
       let currentText = text;
 
       const globalHistory = (globalThis as any).history || [];
-      const globalStoryCards = (globalThis as any).worldInfo || [];
+      const globalStoryCards = (globalThis as any).storyCards || [];
       const globalInfo = (globalThis as any).info || {};
 
       for (const module of this.modules) {
@@ -468,7 +527,7 @@ export class FoxTweaks {
 
       const config = this.loadConfig();
       const globalHistory = (globalThis as any).history || [];
-      const globalStoryCards = (globalThis as any).worldInfo || [];
+      const globalStoryCards = (globalThis as any).storyCards || [];
       const globalInfo = (globalThis as any).info || {};
 
       for (const module of this.modules) {
@@ -506,7 +565,7 @@ export class FoxTweaks {
       let currentText = text;
 
       const globalHistory = (globalThis as any).history || [];
-      const globalStoryCards = (globalThis as any).worldInfo || [];
+      const globalStoryCards = (globalThis as any).storyCards || [];
       const globalInfo = (globalThis as any).info || {};
 
       for (const module of this.modules) {

@@ -202,3 +202,172 @@ HeaderLevel: ##`,
     expect(card.description).toContain("HeaderLevel: ###");
   });
 });
+
+describe("FoxTweaks - Config Card Creation and Repair", () => {
+  beforeEach(() => {
+    (globalThis as any).storyCards = [];
+    (globalThis as any).state = {};
+  });
+
+  test("creates new config card with all modules disabled when no card exists", () => {
+    const core = new FoxTweaks();
+    core.registerModule(testModule);
+    core.registerModule(spacedModule);
+
+    const config = core.loadConfig();
+
+    const card = (globalThis as any).storyCards.find(
+      (c: any) => c.title === "FoxTweaks Config"
+    );
+
+    expect(card).toBeDefined();
+    expect(card.description).toContain("--- Test ---");
+    expect(card.description).toContain("Enable: false");
+    expect(card.description).toContain("--- Narrative Checklist ---");
+    expect(card.description).toContain("Enable: false");
+
+    const testEnableMatches = card.description.match(/Enable:\s*false/g);
+    expect(testEnableMatches).toBeDefined();
+    expect(testEnableMatches.length).toBeGreaterThanOrEqual(2);
+  });
+
+  test("adds missing modules as disabled to existing config card", () => {
+    const existingCard = {
+      id: 0,
+      title: "FoxTweaks Config",
+      keys: "Configure FoxTweaks behavior",
+      description: `--- Test ---
+Enable: true  # Test enable
+Value: 42  # Test value`,
+      type: "class",
+      entry: "",
+    };
+
+    (globalThis as any).storyCards = [existingCard];
+
+    const core = new FoxTweaks();
+    core.registerModule(testModule);
+    core.registerModule(spacedModule);
+
+    core.loadConfig();
+
+    const card = (globalThis as any).storyCards[0];
+
+    expect(card.description).toContain("--- Test ---");
+    expect(card.description).toContain("Enable: true");
+    expect(card.description).toContain("--- Narrative Checklist ---");
+
+    const lines = card.description.split("\n");
+    let inNarrativeChecklistSection = false;
+    let foundNarrativeChecklistEnable = false;
+
+    for (const line of lines) {
+      if (line.includes("--- Narrative Checklist ---")) {
+        inNarrativeChecklistSection = true;
+      } else if (line.trim().startsWith("---")) {
+        inNarrativeChecklistSection = false;
+      }
+
+      if (inNarrativeChecklistSection && line.trim().startsWith("Enable:")) {
+        expect(line).toContain("Enable: false");
+        foundNarrativeChecklistEnable = true;
+      }
+    }
+
+    expect(foundNarrativeChecklistEnable).toBe(true);
+  });
+
+  test("preserves existing enabled modules when adding missing ones", () => {
+    const existingCard = {
+      id: 0,
+      title: "FoxTweaks Config",
+      keys: "Configure FoxTweaks behavior",
+      description: `--- Test ---
+Enable: true  # Test enable
+Value: 100  # Test value`,
+      type: "class",
+      entry: "",
+    };
+
+    (globalThis as any).storyCards = [existingCard];
+
+    const core = new FoxTweaks();
+    core.registerModule(testModule);
+    core.registerModule(spacedModule);
+
+    core.loadConfig();
+
+    const card = (globalThis as any).storyCards[0];
+
+    const lines = card.description.split("\n");
+    let inTestSection = false;
+    let testEnableValue = "";
+
+    for (const line of lines) {
+      if (line.includes("--- Test ---")) {
+        inTestSection = true;
+      } else if (line.trim().startsWith("---")) {
+        inTestSection = false;
+      }
+
+      if (inTestSection && line.trim().startsWith("Enable:")) {
+        testEnableValue = line;
+      }
+    }
+
+    expect(testEnableValue).toContain("Enable: true");
+    expect(card.description).toContain("Value: 100");
+  });
+});
+
+describe("FoxTweaks - Disable Config Sections", () => {
+  let core: FoxTweaks;
+
+  beforeEach(() => {
+    core = new FoxTweaks();
+  });
+
+  test("disableConfigSection should set Enable to false", () => {
+    const disableConfigSection = (core as any).disableConfigSection.bind(core);
+
+    const enabledSection = `--- Test Module ---
+Enable: true  # Enable/disable feature
+MaxTurns: 3  # Number of turns`;
+
+    const disabledSection = disableConfigSection(enabledSection);
+
+    expect(disabledSection).toContain("Enable: false");
+    expect(disabledSection).not.toContain("Enable: true");
+  });
+
+  test("disableConfigSection should handle different Enable values", () => {
+    const disableConfigSection = (core as any).disableConfigSection.bind(core);
+
+    const sections = [
+      `Enable: true  # Comment`,
+      `Enable: false  # Comment`,
+      `Enable: yes  # Comment`,
+      `  Enable: 1  # Comment`,
+    ];
+
+    for (const section of sections) {
+      const disabled = disableConfigSection(section);
+      expect(disabled).toContain("Enable: false  # Comment");
+    }
+  });
+
+  test("disableConfigSection should preserve other lines", () => {
+    const disableConfigSection = (core as any).disableConfigSection.bind(core);
+
+    const section = `--- Test Module ---
+Enable: true  # Enable/disable feature
+MaxTurns: 3  # Number of turns
+Triggers: try, attempt, cast`;
+
+    const disabled = disableConfigSection(section);
+
+    expect(disabled).toContain("MaxTurns: 3  # Number of turns");
+    expect(disabled).toContain("Triggers: try, attempt, cast");
+    expect(disabled).toContain("--- Test Module ---");
+  });
+});

@@ -141,9 +141,20 @@ export function calculateSimilarityWithContinuation(
   const shorterCore = normalizeForComparison(shorter);
   const longerCore = normalizeForComparison(longer);
 
-  if (longerCore.toLowerCase().includes(shorterCore.toLowerCase())) {
+  const shorterLower = shorterCore.toLowerCase();
+  const longerLower = longerCore.toLowerCase();
+
+  if (longerLower.startsWith(shorterLower)) {
     const matchRatio = shorterCore.length / shorter.length;
     return Math.max(normalSimilarity, 70 + matchRatio * 20);
+  }
+
+  if (longerLower.includes(shorterLower)) {
+    const substringRatio = shorterCore.length / longerCore.length;
+    if (substringRatio >= 0.5) {
+      const matchRatio = shorterCore.length / shorter.length;
+      return Math.max(normalSimilarity, 70 + matchRatio * 20);
+    }
   }
 
   const prefixLength = Math.min(longer.length, shorter.length + 20);

@@ -12,10 +12,11 @@ declare function log(message: string): void;
 
 const CHECKLIST_CARD_TITLE = "Narrative Checklist";
 const CHECKLIST_CARD_KEYS = "narrative checklist";
+const MIN_ACTION_PROGRESS = 3;
 
 export interface NarrativeChecklistConfig {
   enable: boolean;
-  minTurnsBeforeCheck: number;
+  maxTurnsBeforeCheck: number;
   remainingTurns: number;
   alwaysIncludeInContext: boolean;
   minContextChars: number;
@@ -23,21 +24,29 @@ export interface NarrativeChecklistConfig {
 
 interface ChecklistState {
   checklistCardId: string | null;
+  minBoundaryReached: boolean;
+  minBoundaryActionText: string | null;
+  boundaryActionCount: number | null;
+  shouldTriggerCheck: boolean;
 }
 
 export const NarrativeChecklist: Module<NarrativeChecklistConfig> = (() => {
+  function getTypedState(state: Record<string, unknown>): ChecklistState {
+    return state as unknown as ChecklistState;
+  }
+
   function validateConfig(
     raw: Record<string, unknown>
   ): NarrativeChecklistConfig {
+    let maxTurns = numberValidator(raw, "maxturnsbeforecheck", { min: 1 }, 0);
+    if (maxTurns === 0) {
+      maxTurns = numberValidator(raw, "minturnsbeforecheck", { min: 1 }, 50);
+    }
+
     return {
       enable: booleanValidator(raw, "enable", true),
-      minTurnsBeforeCheck: numberValidator(
-        raw,
-        "minturnsbeforecheck",
-        { min: 1 },
-        50
-      ),
-      remainingTurns: numberValidator(raw, "remainingturns", { min: 0 }, 50),
+      maxTurnsBeforeCheck: maxTurns,
+      remainingTurns: numberValidator(raw, "remainingturns", { min: 0 }, maxTurns),
       alwaysIncludeInContext: booleanValidator(
         raw,
         "alwaysincludeincontext",
@@ -114,13 +123,26 @@ export const NarrativeChecklist: Module<NarrativeChecklistConfig> = (() => {
       return text;
     }
 
-    if (context.state.checklistCardId === undefined) {
-      context.state.checklistCardId = null;
+    const typedState = getTypedState(context.state);
+    if (typedState.checklistCardId === undefined) {
+      typedState.checklistCardId = null;
+    }
+    if (typedState.minBoundaryReached === undefined) {
+      typedState.minBoundaryReached = false;
+    }
+    if (typedState.minBoundaryActionText === undefined) {
+      typedState.minBoundaryActionText = null;
+    }
+    if (typedState.boundaryActionCount === undefined) {
+      typedState.boundaryActionCount = null;
+    }
+    if (typedState.shouldTriggerCheck === undefined) {
+      typedState.shouldTriggerCheck = false;
     }
 
     const card = ensureChecklistCard();
-    if (card && context.state.checklistCardId !== card.id) {
-      context.state.checklistCardId = card.id;
+    if (card && typedState.checklistCardId !== card.id) {
+      typedState.checklistCardId = card.id;
     }
 
     return text;
@@ -135,9 +157,11 @@ export const NarrativeChecklist: Module<NarrativeChecklistConfig> = (() => {
       return text;
     }
 
+    const typedState = getTypedState(context.state);
+
     if (DEBUG()) {
       log(
-        `[NarrativeChecklist] onOutput - config.remainingTurns=${config.remainingTurns}, config.minTurnsBeforeCheck=${config.minTurnsBeforeCheck}`
+        `[NarrativeChecklist] onOutput - remainingTurns=${config.remainingTurns}, minBoundaryReached=${typedState.minBoundaryReached}, shouldTriggerCheck=${typedState.shouldTriggerCheck}`
       );
     }
     const card = ensureChecklistCard();
@@ -159,16 +183,9 @@ export const NarrativeChecklist: Module<NarrativeChecklistConfig> = (() => {
       context.ai.clearResponse("CHECKLIST_UPDATE");
     }
 
-    const newRemainingTurns = config.remainingTurns - 1;
-    if (DEBUG()) {
-      log(
-        `[NarrativeChecklist] Decrementing turns: ${config.remainingTurns} -> ${newRemainingTurns}`
-      );
-    }
-
-    if (newRemainingTurns <= 0 && card && !context.ai.hasActivePrompt()) {
+    if (typedState.shouldTriggerCheck && card && !context.ai.hasActivePrompt()) {
       if (DEBUG()) {
-        log(`[NarrativeChecklist] Time to check checklist (turns expired)`);
+        log(`[NarrativeChecklist] Boundary exited context, triggering check`);
       }
       const items = parseChecklistItems(card.entry || "");
       const uncheckedItems = items.filter((item) => !item.checked);
@@ -195,17 +212,60 @@ ${checklistText}>>`;
         }
       }
 
+      typedState.shouldTriggerCheck = false;
+      typedState.minBoundaryReached = false;
+      typedState.minBoundaryActionText = null;
+      typedState.boundaryActionCount = null;
+      context.updateConfig("remainingTurns", config.maxTurnsBeforeCheck);
+      if (DEBUG()) {
+        log(`[NarrativeChecklist] Reset state and turns to ${config.maxTurnsBeforeCheck}`);
+      }
+    } else if (!typedState.minBoundaryReached) {
+      const newRemainingTurns = config.remainingTurns - 1;
       if (DEBUG()) {
         log(
-          `[NarrativeChecklist] Resetting turns to ${config.minTurnsBeforeCheck}`
+          `[NarrativeChecklist] Decrementing turns: ${config.remainingTurns} -> ${newRemainingTurns}`
         );
       }
-      context.updateConfig("remainingTurns", config.minTurnsBeforeCheck);
-    } else {
-      if (DEBUG()) {
-        log(`[NarrativeChecklist] Updating turns to ${newRemainingTurns}`);
+
+      if (newRemainingTurns <= 0) {
+        if (DEBUG()) {
+          log(`[NarrativeChecklist] Minimum turns reached, setting boundary`);
+        }
+        typedState.minBoundaryReached = true;
+        typedState.boundaryActionCount = context.info.actionCount;
+
+        const recentHistory = context.history[context.history.length - 1];
+        if (recentHistory && recentHistory.text) {
+          const boundaryText = recentHistory.text.slice(0, 200);
+          typedState.minBoundaryActionText = boundaryText;
+          if (DEBUG()) {
+            log(`[NarrativeChecklist] Stored boundary at action ${context.info.actionCount}: "${boundaryText.slice(0, 50)}..."`);
+          }
+        }
+        context.updateConfig("remainingTurns", 0);
+      } else {
+        context.updateConfig("remainingTurns", newRemainingTurns);
       }
-      context.updateConfig("remainingTurns", newRemainingTurns);
+    } else {
+      const actionsSinceBoundary = typedState.boundaryActionCount !== null
+        ? context.info.actionCount - typedState.boundaryActionCount
+        : 0;
+      const hasMaxTurnsElapsed = config.remainingTurns <= -config.maxTurnsBeforeCheck;
+      const hasMinActionsProgressed = actionsSinceBoundary >= MIN_ACTION_PROGRESS;
+
+      if (DEBUG()) {
+        log(`[NarrativeChecklist] Waiting for boundary to exit context (actions since: ${actionsSinceBoundary}, min required: ${MIN_ACTION_PROGRESS}, max turns reached: ${hasMaxTurnsElapsed})`);
+      }
+
+      if (hasMaxTurnsElapsed && card && !context.ai.hasActivePrompt()) {
+        if (DEBUG()) {
+          log(`[NarrativeChecklist] Maximum turns reached, triggering check regardless of boundary`);
+        }
+        typedState.shouldTriggerCheck = true;
+      }
+
+      context.updateConfig("remainingTurns", config.remainingTurns - 1);
     }
 
     return text;
@@ -254,7 +314,33 @@ ${checklistText}>>`;
     config: NarrativeChecklistConfig,
     context: HookContext
   ): string {
-    if (!config.enable || !config.alwaysIncludeInContext) {
+    if (!config.enable) {
+      return text;
+    }
+
+    const typedState = getTypedState(context.state);
+
+    if (typedState.minBoundaryReached && typedState.minBoundaryActionText) {
+      const boundaryInContext = text.includes(typedState.minBoundaryActionText);
+      const actionsSinceBoundary = typedState.boundaryActionCount !== null
+        ? context.info.actionCount - typedState.boundaryActionCount
+        : 0;
+      const hasMinActionsProgressed = actionsSinceBoundary >= MIN_ACTION_PROGRESS;
+
+      if (DEBUG()) {
+        log(
+          `[NarrativeChecklist] Checking boundary in context: ${boundaryInContext ? "present" : "EXITED"}, actions since: ${actionsSinceBoundary}, min required: ${MIN_ACTION_PROGRESS}`
+        );
+      }
+      if (!boundaryInContext && hasMinActionsProgressed) {
+        if (DEBUG()) {
+          log(`[NarrativeChecklist] Boundary has exited context and sufficient actions passed, will trigger check`);
+        }
+        typedState.shouldTriggerCheck = true;
+      }
+    }
+
+    if (!config.alwaysIncludeInContext) {
       return text;
     }
 
@@ -287,12 +373,19 @@ ${checklistText}>>`;
     return text;
   }
 
+  function migrateConfigSection(sectionText: string): string {
+    return sectionText.replace(
+      /MinTurnsBeforeCheck:/g,
+      "MaxTurnsBeforeCheck:"
+    );
+  }
+
   return {
     name: "narrativeChecklist",
     configSection: `--- Narrative Checklist ---
 Enable: true  # Enable narrative checklist tracking
-MinTurnsBeforeCheck: 50  # Minimum turns between AI completion checks
-RemainingTurns: 50  # Turns remaining until next check
+MaxTurnsBeforeCheck: 50  # Maximum turns before checking (checks earlier when boundary exits context)
+RemainingTurns: 50  # Turns remaining until check
 AlwaysIncludeInContext: true  # Always include checklist in context
 MinContextChars: 2000  # Minimum characters to preserve for recent story (keep high for Auto-Cards compatibility)`,
     validateConfig,
@@ -303,6 +396,11 @@ MinContextChars: 2000  # Minimum characters to preserve for recent story (keep h
     },
     initialState: {
       checklistCardId: null,
+      minBoundaryReached: false,
+      minBoundaryActionText: null,
+      boundaryActionCount: null,
+      shouldTriggerCheck: false,
     },
+    migrateConfigSection,
   };
 })();

@@ -142,6 +142,7 @@ export class FoxTweaks {
         );
       }
       this.repairConfig(card);
+      this.runConfigMigrations(card);
 
       if (!card.entry || card.entry.trim() === "") {
         card.entry = getDefaultInterjectEntry();
@@ -224,6 +225,55 @@ export class FoxTweaks {
     } else {
       if (DEBUG()) {
         log(`[FoxTweaks] repairConfig - no missing sections, nothing to add`);
+      }
+    }
+  }
+
+  /**
+   * Runs config migrations on existing sections
+   * @param card - The config card to migrate
+   */
+  private runConfigMigrations(card: StoryCard): void {
+    const defaults = this.getDefaultSections();
+    let description = card.description || "";
+    let hasChanges = false;
+
+    for (const module of this.modules) {
+      if (!module.migrateConfigSection) {
+        continue;
+      }
+
+      const sectionHeader = defaults[module.name]?.match(/^---\s*(.+?)\s*---/)?.[0];
+      if (!sectionHeader || !description.includes(sectionHeader)) {
+        continue;
+      }
+
+      const sectionStart = description.indexOf(sectionHeader);
+      const nextSectionMatch = description.slice(sectionStart + sectionHeader.length).match(/\n---\s+/);
+      const sectionEnd = nextSectionMatch
+        ? sectionStart + sectionHeader.length + nextSectionMatch.index!
+        : description.length;
+
+      const sectionText = description.slice(sectionStart, sectionEnd);
+      const migratedText = module.migrateConfigSection(sectionText);
+
+      if (migratedText !== sectionText) {
+        if (DEBUG()) {
+          log(`[FoxTweaks] runConfigMigrations - migrating section: ${module.name}`);
+        }
+        description = description.slice(0, sectionStart) + migratedText + description.slice(sectionEnd);
+        hasChanges = true;
+      }
+    }
+
+    if (hasChanges) {
+      if (DEBUG()) {
+        log(`[FoxTweaks] runConfigMigrations - config updated with migrations`);
+      }
+      card.description = description;
+    } else {
+      if (DEBUG()) {
+        log(`[FoxTweaks] runConfigMigrations - no migrations needed`);
       }
     }
   }

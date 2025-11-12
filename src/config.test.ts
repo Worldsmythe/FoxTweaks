@@ -92,7 +92,7 @@ describe("parseConfig - Full String Parsing", () => {
       modules
     );
     expect(config.narrativeChecklist.enable).toBe(true);
-    expect(config.narrativeChecklist.minTurnsBeforeCheck).toBe(50);
+    expect(config.narrativeChecklist.maxTurnsBeforeCheck).toBe(50);
     expect(config.narrativeChecklist.remainingTurns).toBe(50);
     expect(config.narrativeChecklist.alwaysIncludeInContext).toBe(true);
     expect(config.narrativeChecklist.minContextChars).toBe(2000);
@@ -114,14 +114,14 @@ describe("parseConfig - Full String Parsing", () => {
   test("parses user-modified config with comments (PascalCase to lowercase)", () => {
     const userConfig = `--- Narrative Checklist ---
 Enable: true  # Enable narrative checklist tracking
-MinTurnsBeforeCheck: 10  # Check every 10 turns
+MaxTurnsBeforeCheck: 10  # Check at most every 10 turns
 RemainingTurns: 5  # 5 turns until next check
 AlwaysIncludeInContext: false  # Don't always include
 MinContextChars: 1000  # Keep 1000 chars of recent story`;
 
     const config = parseConfig<TestConfig>(userConfig, modules);
     expect(config.narrativeChecklist.enable).toBe(true);
-    expect(config.narrativeChecklist.minTurnsBeforeCheck).toBe(10);
+    expect(config.narrativeChecklist.maxTurnsBeforeCheck).toBe(10);
     expect(config.narrativeChecklist.remainingTurns).toBe(5);
     expect(config.narrativeChecklist.alwaysIncludeInContext).toBe(false);
     expect(config.narrativeChecklist.minContextChars).toBe(1000);
@@ -283,7 +283,7 @@ MinContextChars: 2000  # Minimum characters to preserve for recent story`;
 
     // NarrativeChecklist
     expect(config.narrativeChecklist.enable).toBe(true);
-    expect(config.narrativeChecklist.minTurnsBeforeCheck).toBe(50);
+    expect(config.narrativeChecklist.maxTurnsBeforeCheck).toBe(50);
     expect(config.narrativeChecklist.remainingTurns).toBe(50);
     expect(config.narrativeChecklist.alwaysIncludeInContext).toBe(true);
     expect(config.narrativeChecklist.minContextChars).toBe(2000);

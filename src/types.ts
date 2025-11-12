@@ -110,6 +110,14 @@ export interface Module<TConfig> {
    * Each module instance gets its own state object
    */
   initialState?: Record<string, unknown>;
+
+  /**
+   * Optional migration function to update config section text
+   * Used to rename keys or update config format when loading old configs
+   * @param sectionText - The config section text for this module
+   * @returns Migrated config section text
+   */
+  migrateConfigSection?: (sectionText: string) => string;
 }
 
 /**

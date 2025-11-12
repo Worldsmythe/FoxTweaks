@@ -3,6 +3,7 @@ import { FoxTweaks } from "./core";
 import type { Module } from "./types";
 import { testWithAiDungeonEnvironment, createConfigCard } from "./test-utils";
 import { findConfigCard } from "./utils/storyCardHelpers";
+import { NarrativeChecklist } from "./modules/narrativeChecklist";
 
 // Mock module
 const testModule: Module<{ enable: boolean; value: number }> = {
@@ -316,7 +317,36 @@ Value: 100  # Test value`);
       expect(card?.description).toContain("Value: 100");
     }
   );
+
+  testWithAiDungeonEnvironment(
+    "migrates old MinTurnsBeforeCheck to MaxTurnsBeforeCheck in config card",
+    () => {
+      createConfigCard(`--- Narrative Checklist ---
+Enable: true
+MinTurnsBeforeCheck: 40
+RemainingTurns: 40
+AlwaysIncludeInContext: true
+MinContextChars: 2000`);
+
+      const core = new FoxTweaks();
+      core.registerModule(NarrativeChecklist);
+      core.registerModule(testModule);
+
+      const config = core.loadConfig<any>();
+
+      const card = findConfigCard();
+
+      expect(card?.description).not.toContain("MinTurnsBeforeCheck: 40");
+      expect(card?.description).toContain("MaxTurnsBeforeCheck: 40");
+      expect(card?.description).toContain("--- Test ---");
+      expect(card?.description).toContain("--- Narrative Checklist ---");
+
+      expect(config.narrativeChecklist.maxTurnsBeforeCheck).toBe(40);
+      expect(config.narrativeChecklist.enable).toBe(true);
+    }
+  );
 });
+
 
 describe("FoxTweaks - Disable Config Sections", () => {
   testWithAiDungeonEnvironment(

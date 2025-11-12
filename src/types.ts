@@ -1,18 +1,3 @@
-export type { History, StoryCard as SDKStoryCard } from "ai-dungeon-sdk";
-
-/**
- * Extended StoryCard with custom fields used by FoxTweaks
- */
-export interface StoryCard {
-  id: string;
-  keys?: string[];
-  type?: string;
-  entry?: string;
-  title?: string;
-  description?: string;
-  updatedAt?: string;
-}
-
 export interface AIPromptRequest {
   id: string;
   moduleName: string;
@@ -44,7 +29,7 @@ export interface HookContext {
   /**
    * Recent action history
    */
-  history: import("ai-dungeon-sdk").History[];
+  history: History[];
 
   /**
    * Available story cards
@@ -54,7 +39,7 @@ export interface HookContext {
   /**
    * Additional metadata about the current action
    */
-  info: import("ai-dungeon-sdk").Info;
+  info: Info;
 
   /**
    * AI prompt injection system

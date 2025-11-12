@@ -46,11 +46,3 @@ export function pinAndSortCards(pinnedCards: StoryCard | StoryCard[]): void {
     }
   }
 }
-
-/**
- * Creates a new story card with the given keys
- * @param keys - The keys for the new card
- */
-export function createStoryCard(keys: string): void {
-  addStoryCard(keys);
-}

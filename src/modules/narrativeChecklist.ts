@@ -1,6 +1,6 @@
-import type { Module, HookContext, StoryCard } from "../types";
+import type { Module, HookContext } from "../types";
 import { booleanValidator, numberValidator } from "../utils/validation";
-import { findCard, createStoryCard } from "../utils/cards";
+import { findCard, createStoryCard } from "../utils/storyCardHelpers";
 import {
   injectSection,
   truncateSection,
@@ -56,8 +56,15 @@ export const NarrativeChecklist: Module<NarrativeChecklistConfig> = (() => {
     let card = findCard(CHECKLIST_CARD_TITLE);
 
     if (!card) {
-      createStoryCard(CHECKLIST_CARD_KEYS);
-      card = findCard(CHECKLIST_CARD_KEYS);
+      card =
+        addStoryCard(
+          CHECKLIST_CARD_KEYS,
+          undefined,
+          undefined,
+          undefined,
+          undefined,
+          { returnCard: true }
+        ) ?? undefined;
 
       if (card) {
         card.title = CHECKLIST_CARD_TITLE;
@@ -129,7 +136,9 @@ export const NarrativeChecklist: Module<NarrativeChecklistConfig> = (() => {
     }
 
     if (DEBUG()) {
-      log(`[NarrativeChecklist] onOutput - config.remainingTurns=${config.remainingTurns}, config.minTurnsBeforeCheck=${config.minTurnsBeforeCheck}`);
+      log(
+        `[NarrativeChecklist] onOutput - config.remainingTurns=${config.remainingTurns}, config.minTurnsBeforeCheck=${config.minTurnsBeforeCheck}`
+      );
     }
     const card = ensureChecklistCard();
 
@@ -152,7 +161,9 @@ export const NarrativeChecklist: Module<NarrativeChecklistConfig> = (() => {
 
     const newRemainingTurns = config.remainingTurns - 1;
     if (DEBUG()) {
-      log(`[NarrativeChecklist] Decrementing turns: ${config.remainingTurns} -> ${newRemainingTurns}`);
+      log(
+        `[NarrativeChecklist] Decrementing turns: ${config.remainingTurns} -> ${newRemainingTurns}`
+      );
     }
 
     if (newRemainingTurns <= 0 && card && !context.ai.hasActivePrompt()) {
@@ -164,7 +175,9 @@ export const NarrativeChecklist: Module<NarrativeChecklistConfig> = (() => {
 
       if (uncheckedItems.length > 0) {
         if (DEBUG()) {
-          log(`[NarrativeChecklist] Found ${uncheckedItems.length} unchecked items, requesting AI check`);
+          log(
+            `[NarrativeChecklist] Found ${uncheckedItems.length} unchecked items, requesting AI check`
+          );
         }
         const checklistText = uncheckedItems
           .map((item, idx) => `${idx + 1}. ${item.text}`)
@@ -183,7 +196,9 @@ ${checklistText}>>`;
       }
 
       if (DEBUG()) {
-        log(`[NarrativeChecklist] Resetting turns to ${config.minTurnsBeforeCheck}`);
+        log(
+          `[NarrativeChecklist] Resetting turns to ${config.minTurnsBeforeCheck}`
+        );
       }
       context.updateConfig("remainingTurns", config.minTurnsBeforeCheck);
     } else {

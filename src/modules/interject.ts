@@ -1,5 +1,5 @@
-import type { Module, StoryCard, HookContext } from "../types";
-import { findCard } from "../utils/cards";
+import type { Module, HookContext } from "../types";
+import { findCard } from "../utils/storyCardHelpers";
 import { booleanValidator, numberValidator } from "../utils/validation";
 
 export interface InterjectConfig {

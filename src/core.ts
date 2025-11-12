@@ -1,10 +1,8 @@
-import type { Module, StoryCard, AIPromptRequest } from "./types";
+import type { Module, AIPromptRequest } from "./types";
 import { parseConfig, parseConfigLine, rebuildConfigLine } from "./config";
-import { findCard, createStoryCard } from "./utils/cards";
+import { findCard } from "./utils/storyCardHelpers";
 import { getDefaultInterjectEntry } from "./modules/interject";
 import { DEBUG } from "./debug" with { type: "macro" };
-
-declare function log(message: string): void;
 
 const CARD_TITLE = "FoxTweaks Config";
 const CARD_KEYS = "Configure FoxTweaks behavior";
@@ -29,14 +27,14 @@ export class FoxTweaks {
   private cachedConfig: Record<string, unknown> | null = null;
 
   private getGlobalState(): ModuleState {
-    const globalState = (globalThis as any).state;
+    const globalState = state;
     if (!globalState) {
       throw new Error("Global state object not available");
     }
     if (!globalState.foxTweaks) {
       globalState.foxTweaks = {};
     }
-    return globalState.foxTweaks;
+    return globalState.foxTweaks as ModuleState;
   }
 
   private getAIState(): GlobalAIState {
@@ -105,7 +103,9 @@ export class FoxTweaks {
    */
   private ensureConfigCard(): StoryCard | null {
     if (DEBUG()) {
-      log(`[FoxTweaks] ensureConfigCard - searching for card with title="${CARD_TITLE}" or keys="${CARD_KEYS}"`);
+      log(
+        `[FoxTweaks] ensureConfigCard - searching for card with title="${CARD_TITLE}" or keys="${CARD_KEYS}"`
+      );
     }
 
     let card = findCard(CARD_TITLE) || findCard(CARD_KEYS);
@@ -114,8 +114,10 @@ export class FoxTweaks {
       if (DEBUG()) {
         log(`[FoxTweaks] ensureConfigCard - no card found, creating new one`);
       }
-      createStoryCard(CARD_KEYS);
-      card = findCard(CARD_KEYS);
+      card =
+        addStoryCard(CARD_KEYS, undefined, undefined, undefined, undefined, {
+          returnCard: true,
+        }) ?? undefined;
       if (card) {
         card.title = CARD_TITLE;
         card.type = "class";
@@ -128,12 +130,16 @@ export class FoxTweaks {
         card.entry = getDefaultInterjectEntry();
 
         if (DEBUG()) {
-          log(`[FoxTweaks] ensureConfigCard - created new card with ${sections.length} sections (all disabled)`);
+          log(
+            `[FoxTweaks] ensureConfigCard - created new card with ${sections.length} sections (all disabled)`
+          );
         }
       }
     } else {
       if (DEBUG()) {
-        log(`[FoxTweaks] ensureConfigCard - found existing card, repairing config`);
+        log(
+          `[FoxTweaks] ensureConfigCard - found existing card, repairing config`
+        );
       }
       this.repairConfig(card);
 
@@ -151,10 +157,7 @@ export class FoxTweaks {
    * @returns The disabled config section
    */
   private disableConfigSection(configSection: string): string {
-    return configSection.replace(
-      /^(\s*Enable:\s*)\S+(.*)$/m,
-      "$1false$2"
-    );
+    return configSection.replace(/^(\s*Enable:\s*)\S+(.*)$/m, "$1false$2");
   }
 
   /**
@@ -166,27 +169,34 @@ export class FoxTweaks {
     const allSections = this.getAllModuleNames();
 
     if (DEBUG()) {
-      log(`[FoxTweaks] repairConfig called - all sections: ${allSections.join(", ")}`);
+      log(
+        `[FoxTweaks] repairConfig called - all sections: ${allSections.join(", ")}`
+      );
     }
 
     const description = card.description || "";
     const foundSections = new Set<string>();
 
     for (const sectionName of allSections) {
-      const sectionHeader = defaults[sectionName]?.match(/^---\s*(.+?)\s*---/)?.[0];
+      const sectionHeader =
+        defaults[sectionName]?.match(/^---\s*(.+?)\s*---/)?.[0];
       if (sectionHeader && description.includes(sectionHeader)) {
         foundSections.add(sectionName);
       }
     }
 
     if (DEBUG()) {
-      log(`[FoxTweaks] repairConfig - found sections: ${Array.from(foundSections).join(", ")}`);
+      log(
+        `[FoxTweaks] repairConfig - found sections: ${Array.from(foundSections).join(", ")}`
+      );
     }
 
     const missingSections = allSections.filter((s) => !foundSections.has(s));
 
     if (DEBUG()) {
-      log(`[FoxTweaks] repairConfig - missing sections: ${missingSections.join(", ")}`);
+      log(
+        `[FoxTweaks] repairConfig - missing sections: ${missingSections.join(", ")}`
+      );
     }
 
     if (missingSections.length > 0) {
@@ -199,11 +209,15 @@ export class FoxTweaks {
         if (repairedDescription) {
           repairedDescription += "\n\n";
         }
-        repairedDescription += this.disableConfigSection(defaults[section] || "");
+        repairedDescription += this.disableConfigSection(
+          defaults[section] || ""
+        );
       }
 
       if (DEBUG()) {
-        log(`[FoxTweaks] repairConfig - updated description length: ${repairedDescription.length} (was: ${(card.description || "").length})`);
+        log(
+          `[FoxTweaks] repairConfig - updated description length: ${repairedDescription.length} (was: ${(card.description || "").length})`
+        );
       }
 
       card.description = repairedDescription;
@@ -347,12 +361,12 @@ export class FoxTweaks {
     reformatContext: (text: string) => string;
   } {
     const isAutoCardsActive = (): boolean => {
-      const globalState = (globalThis as any).state;
+      const globalState = state;
       if (!globalState) return false;
 
       return !!(
         globalState.AC?.signal?.generate ||
-        globalState.AC?.generation?.queue?.length > 0 ||
+        (globalState.AC?.generation?.queue?.length ?? 0) > 0 ||
         globalState.AC?.signal?.compress
       );
     };
@@ -412,9 +426,9 @@ export class FoxTweaks {
       const config = this.loadConfig();
       let currentText = text;
 
-      const globalHistory = (globalThis as any).history || [];
-      const globalStoryCards = (globalThis as any).storyCards || [];
-      const globalInfo = (globalThis as any).info || {};
+      const globalHistory = history || [];
+      const globalStoryCards = storyCards || [];
+      const globalInfo = info || {};
 
       for (const module of this.modules) {
         if (module.hooks.onInput) {
@@ -450,9 +464,9 @@ export class FoxTweaks {
       const config = this.loadConfig();
       let currentText = text;
 
-      const globalHistory = (globalThis as any).history || [];
-      const globalStoryCards = (globalThis as any).storyCards || [];
-      const globalInfo = (globalThis as any).info || {};
+      const globalHistory = history || [];
+      const globalStoryCards = storyCards || [];
+      const globalInfo = info || {};
 
       for (const module of this.modules) {
         if (module.hooks.onContext) {
@@ -526,9 +540,9 @@ export class FoxTweaks {
       }
 
       const config = this.loadConfig();
-      const globalHistory = (globalThis as any).history || [];
-      const globalStoryCards = (globalThis as any).storyCards || [];
-      const globalInfo = (globalThis as any).info || {};
+      const globalHistory = history || [];
+      const globalStoryCards = storyCards || [];
+      const globalInfo = info || {};
 
       for (const module of this.modules) {
         if (module.hooks.onOutput) {
@@ -564,9 +578,9 @@ export class FoxTweaks {
       const config = this.loadConfig();
       let currentText = text;
 
-      const globalHistory = (globalThis as any).history || [];
-      const globalStoryCards = (globalThis as any).storyCards || [];
-      const globalInfo = (globalThis as any).info || {};
+      const globalHistory = history || [];
+      const globalStoryCards = storyCards || [];
+      const globalInfo = info || {};
 
       for (const module of this.modules) {
         if (module.hooks.onReformatContext) {

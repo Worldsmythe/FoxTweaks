@@ -1,51 +1,24 @@
-import { describe, test, expect, beforeEach } from "bun:test";
+import { describe, expect } from "bun:test";
 import { FoxTweaks } from "../core";
 import { BetterYou } from "./betteryou";
 import { Paragraph } from "./paragraph";
 import { Redundancy } from "./redundancy";
 import { NarrativeChecklist } from "./narrativeChecklist";
-
-interface History {
-  text: string;
-  type: "continue" | "say" | "do" | "story" | "see" | "start" | "unknown";
-}
+import {
+  testWithAiDungeonEnvironment,
+  createConfigCard,
+  addHistoryAction,
+} from "../test-utils";
+import { findConfigCard } from "../utils/storyCardHelpers";
 
 describe("Multi-Module Pipeline - Integration Tests", () => {
-  beforeEach(() => {
-    (globalThis as any).log = () => {};
-    (globalThis as any).storyCards = [];
-    (globalThis as any).state = {};
-    (globalThis as any).info = {};
-    (globalThis as any).addStoryCard = (keys: string) => {
-      const newCard = {
-        id: (globalThis as any).storyCards.length,
-        title: "",
-        keys,
-        description: "",
-        type: "",
-        entry: "",
-      };
-      (globalThis as any).storyCards.push(newCard);
-    };
-  });
+  testWithAiDungeonEnvironment(
+    "should process input through BetterYou and output through Paragraph + Redundancy",
+    () => {
+      addHistoryAction("You enter a tavern.", "do");
+      addHistoryAction("The tavern is bustling with activity.", "continue");
 
-  test("should process input through BetterYou and output through Paragraph + Redundancy", () => {
-    const initialHistory: History[] = [
-      { text: "You enter a tavern.", type: "do" },
-      { text: "The tavern is bustling with activity.", type: "continue" },
-    ];
-    (globalThis as any).history = initialHistory;
-
-    const core = new FoxTweaks();
-    core.registerModule(BetterYou);
-    core.registerModule(Paragraph);
-    core.registerModule(Redundancy);
-
-    const configCard = {
-      id: 0,
-      title: "FoxTweaks Config",
-      keys: "Configure FoxTweaks behavior",
-      description: `--- Better You ---
+      createConfigCard(`--- Better You ---
 Enable: true
 Replacements:
   me: you
@@ -53,147 +26,118 @@ Replacements:
 
 --- Paragraph ---
 Enable: true
-FormattingType: doubleNewline
+FormattingType: basic
 IndentParagraphs: false
 
 --- Redundancy ---
 Enable: true
-SimilarityThreshold: 70`,
-      type: "class",
-      entry: "",
-    };
-    (globalThis as any).storyCards = [configCard];
+SimilarityThreshold: 70`);
 
-    const hooks = core.createHooks();
+      const core = new FoxTweaks();
+      core.registerModule(BetterYou);
+      core.registerModule(Paragraph);
+      core.registerModule(Redundancy);
 
-    const playerInput = "> You look at me and approach mine table.";
-    const processedInput = hooks.onInput(playerInput);
+      const hooks = core.createHooks();
 
-    expect(processedInput).toContain("you");
-    expect(processedInput).toContain("yours");
+      const playerInput = "> You look at me and approach mine table.";
+      const processedInput = hooks.onInput(playerInput);
 
-    const aiOutput = "You sit down at the table.\nYou order a drink.";
-    const processedOutput = hooks.onOutput(aiOutput);
+      expect(processedInput).toContain("you");
+      expect(processedInput).toContain("yours");
 
-    expect(processedOutput).toContain("\n\n");
-    expect(processedOutput).not.toContain("The tavern is bustling");
-  });
+      const aiOutput = "You sit down at the table.\nYou order a drink.";
+      const processedOutput = hooks.onOutput(aiOutput);
 
-  test("should handle successive outputs through full pipeline without duplication", () => {
-    const initialHistory: History[] = [
-      { text: "You begin your adventure.", type: "start" },
-    ];
-    (globalThis as any).history = initialHistory;
+      expect(processedOutput).toContain("\n\n");
+      expect(processedOutput).not.toContain("The tavern is bustling");
+    }
+  );
 
-    const core = new FoxTweaks();
-    core.registerModule(BetterYou);
-    core.registerModule(Paragraph);
-    core.registerModule(Redundancy);
+  testWithAiDungeonEnvironment(
+    "should handle successive outputs through full pipeline without duplication",
+    () => {
+      addHistoryAction("You begin your adventure.", "start");
 
-    const configCard = {
-      id: 0,
-      title: "FoxTweaks Config",
-      keys: "Configure FoxTweaks behavior",
-      description: `--- BetterYou ---
+      createConfigCard(`--- BetterYou ---
 Enable: true
 
 --- Paragraph ---
 Enable: true
-FormattingType: doubleNewline
+FormattingType: basic
 IndentParagraphs: false
 
 --- Redundancy ---
 Enable: true
-SimilarityThreshold: 70`,
-      type: "class",
-      entry: "",
-    };
-    (globalThis as any).storyCards = [configCard];
+SimilarityThreshold: 70`);
 
-    const hooks = core.createHooks();
+      const core = new FoxTweaks();
+      core.registerModule(BetterYou);
+      core.registerModule(Paragraph);
+      core.registerModule(Redundancy);
 
-    const firstOutput = "You find yourself in a dark forest.";
-    const processedFirst = hooks.onOutput(firstOutput);
+      const hooks = core.createHooks();
 
-    (globalThis as any).history = [
-      ...initialHistory,
-      { text: processedFirst, type: "continue" },
-      { text: "I look around.", type: "do" },
-    ];
+      const firstOutput = "You find yourself in a dark forest.";
+      const processedFirst = hooks.onOutput(firstOutput);
 
-    const secondOutput = "You see tall trees surrounding you.";
-    const processedSecond = hooks.onOutput(secondOutput);
+      addHistoryAction(processedFirst, "continue");
+      addHistoryAction("I look around.", "do");
 
-    expect(processedSecond).not.toContain("dark forest");
-    expect(processedSecond).toContain("tall trees");
+      const secondOutput = "You see tall trees surrounding you.";
+      const processedSecond = hooks.onOutput(secondOutput);
 
-    const outputsSimilar =
-      processedSecond.includes(firstOutput) ||
-      processedFirst.includes(secondOutput);
-    expect(outputsSimilar).toBe(false);
-  });
+      expect(processedSecond).not.toContain("dark forest");
+      expect(processedSecond).toContain("tall trees");
 
-  test("should process identical outputs differently to avoid duplication", () => {
-    const initialHistory: History[] = [
-      { text: "You enter the room.", type: "do" },
-      { text: "The room is dark and cold.", type: "continue" },
-    ];
-    (globalThis as any).history = initialHistory;
+      const outputsSimilar =
+        processedSecond.includes(firstOutput) ||
+        processedFirst.includes(secondOutput);
+      expect(outputsSimilar).toBe(false);
+    }
+  );
 
-    const core = new FoxTweaks();
-    core.registerModule(Paragraph);
-    core.registerModule(Redundancy);
+  testWithAiDungeonEnvironment(
+    "should process identical outputs differently to avoid duplication",
+    () => {
+      addHistoryAction("You enter the room.", "do");
+      addHistoryAction("The room is dark and cold.", "continue");
 
-    const configCard = {
-      id: 0,
-      title: "FoxTweaks Config",
-      keys: "Configure FoxTweaks behavior",
-      description: `--- Paragraph ---
+      createConfigCard(`--- Paragraph ---
 Enable: true
-FormattingType: doubleNewline
+FormattingType: basic
 IndentParagraphs: false
 
 --- Redundancy ---
 Enable: true
-SimilarityThreshold: 70`,
-      type: "class",
-      entry: "",
-    };
-    (globalThis as any).storyCards = [configCard];
+SimilarityThreshold: 70`);
 
-    const hooks = core.createHooks();
+      const core = new FoxTweaks();
+      core.registerModule(Paragraph);
+      core.registerModule(Redundancy);
 
-    const firstOutput = "You see a door ahead.";
-    const processedFirst = hooks.onOutput(firstOutput);
+      const hooks = core.createHooks();
 
-    (globalThis as any).history = [
-      ...initialHistory,
-      { text: processedFirst, type: "continue" },
-    ];
+      const firstOutput = "You see a door ahead.";
+      const processedFirst = hooks.onOutput(firstOutput);
 
-    const secondOutput = "You see a door ahead.";
-    const processedSecond = hooks.onOutput(secondOutput);
+      addHistoryAction(processedFirst, "continue");
 
-    expect(processedSecond).toBe(secondOutput);
+      const secondOutput = "You see a door ahead.";
+      const processedSecond = hooks.onOutput(secondOutput);
 
-    const duplicateCount = processedSecond.split("You see a door ahead").length - 1;
-    expect(duplicateCount).toBe(1);
-  });
+      expect(processedSecond).toBe(secondOutput);
 
-  test("should handle all modules enabled with NarrativeChecklist", () => {
-    (globalThis as any).history = [];
+      const duplicateCount =
+        processedSecond.split("You see a door ahead").length - 1;
+      expect(duplicateCount).toBe(1);
+    }
+  );
 
-    const core = new FoxTweaks();
-    core.registerModule(BetterYou);
-    core.registerModule(Paragraph);
-    core.registerModule(Redundancy);
-    core.registerModule(NarrativeChecklist);
-
-    const configCard = {
-      id: 0,
-      title: "FoxTweaks Config",
-      keys: "Configure FoxTweaks behavior",
-      description: `--- Better You ---
+  testWithAiDungeonEnvironment(
+    "should handle all modules enabled with NarrativeChecklist",
+    () => {
+      createConfigCard(`--- Better You ---
 Enable: true
 Replacements:
   me: you
@@ -201,7 +145,7 @@ Replacements:
 
 --- Paragraph ---
 Enable: true
-FormattingType: doubleNewline
+FormattingType: basic
 IndentParagraphs: false
 
 --- Redundancy ---
@@ -213,102 +157,99 @@ Enable: true
 MinTurnsBeforeCheck: 10
 RemainingTurns: 3
 AlwaysIncludeInContext: false
-MinContextChars: 2000`,
-      type: "class",
-      entry: "",
-    };
+MinContextChars: 2000`);
 
-    const checklistCard = {
-      id: 1,
-      title: "Narrative Checklist",
-      keys: "nc_checklist",
-      description: "[ ] Complete the quest",
-      type: "checklist",
-      entry: "",
-    };
+      const checklistLength = addStoryCard("nc_checklist", "", "checklist");
+      const checklistCard =
+        storyCards[
+          (typeof checklistLength === "number"
+            ? checklistLength
+            : storyCards.length) - 1
+        ];
+      if (checklistCard) {
+        checklistCard.title = "Narrative Checklist";
+        checklistCard.description = "[ ] Complete the quest";
+      }
 
-    (globalThis as any).storyCards = [configCard, checklistCard];
+      const core = new FoxTweaks();
+      core.registerModule(BetterYou);
+      core.registerModule(Paragraph);
+      core.registerModule(Redundancy);
+      core.registerModule(NarrativeChecklist);
 
-    const hooks = core.createHooks();
+      const hooks = core.createHooks();
 
-    const playerInput = "> You look at me and mine belongings.";
-    const processedInput = hooks.onInput(playerInput);
-    expect(processedInput).toContain("you");
+      const playerInput = "> You look at me and mine belongings.";
+      const processedInput = hooks.onInput(playerInput);
+      expect(processedInput).toContain("you");
 
-    const aiOutput = "You find a mysterious amulet.";
-    const processedOutput = hooks.onOutput(aiOutput);
+      const aiOutput = "You find a mysterious amulet.";
+      const processedOutput = hooks.onOutput(aiOutput);
 
-    expect(processedOutput).toBe(aiOutput);
+      expect(processedOutput).toBe(aiOutput);
 
-    const updatedConfigCard = (globalThis as any).storyCards.find(
-      (c: any) => c.title === "FoxTweaks Config"
-    );
-    expect(updatedConfigCard.description).toContain("RemainingTurns: 2");
-  });
+      const updatedConfigCard = findConfigCard();
+      expect(updatedConfigCard?.description).toContain("RemainingTurns: 2");
+    }
+  );
 
-  test("should maintain output integrity through 10 successive AI responses", () => {
-    const initialHistory: History[] = [
-      { text: "You start your adventure.", type: "start" },
-    ];
-    (globalThis as any).history = [...initialHistory];
+  testWithAiDungeonEnvironment(
+    "should maintain output integrity through 10 successive AI responses",
+    () => {
+      addHistoryAction("You start your adventure.", "start");
 
-    const core = new FoxTweaks();
-    core.registerModule(Paragraph);
-    core.registerModule(Redundancy);
-
-    const configCard = {
-      id: 0,
-      title: "FoxTweaks Config",
-      keys: "Configure FoxTweaks behavior",
-      description: `--- Paragraph ---
+      createConfigCard(`--- Paragraph ---
 Enable: true
-FormattingType: doubleNewline
+FormattingType: basic
 IndentParagraphs: false
 
 --- Redundancy ---
 Enable: true
-SimilarityThreshold: 70`,
-      type: "class",
-      entry: "",
-    };
-    (globalThis as any).storyCards = [configCard];
+SimilarityThreshold: 70`);
 
-    const hooks = core.createHooks();
+      const core = new FoxTweaks();
+      core.registerModule(Paragraph);
+      core.registerModule(Redundancy);
 
-    const outputs = [
-      "You find yourself in a mysterious cave.",
-      "The cave walls glisten with moisture.",
-      "You hear dripping water in the distance.",
-      "A faint light appears ahead.",
-      "You move toward the light cautiously.",
-      "The light grows brighter as you approach.",
-      "You discover an underground lake.",
-      "The water is crystal clear.",
-      "You see fish swimming below.",
-      "You decide to rest by the water.",
-    ];
+      const hooks = core.createHooks();
 
-    const processedOutputs: string[] = [];
-
-    for (const output of outputs) {
-      const processed = hooks.onOutput(output);
-      processedOutputs.push(processed);
-
-      expect(processed).toBeDefined();
-      expect(processed.length).toBeGreaterThan(0);
-
-      (globalThis as any).history = [
-        ...(globalThis as any).history,
-        { text: processed, type: "continue" },
+      const outputs = [
+        "You find yourself in a mysterious cave.",
+        "The cave walls glisten with moisture.",
+        "You hear dripping water in the distance.",
+        "A faint light appears ahead.",
+        "You move toward the light cautiously.",
+        "The light grows brighter as you approach.",
+        "You discover an underground lake.",
+        "The water is crystal clear.",
+        "You see fish swimming below.",
+        "You decide to rest by the water.",
       ];
-    }
 
-    for (let i = 0; i < processedOutputs.length; i++) {
-      for (let j = i + 1; j < processedOutputs.length; j++) {
-        const combined = processedOutputs[i] + processedOutputs[j];
-        const fullCombined = combined.split(outputs[i]).length - 1;
-        expect(fullCombined).toBeLessThanOrEqual(1);
+      const processedOutputs: string[] = [];
+
+      for (const output of outputs) {
+        const processed = hooks.onOutput(output);
+        processedOutputs.push(processed);
+
+        expect(processed).toBeDefined();
+        expect(processed.length).toBeGreaterThan(0);
+
+        addHistoryAction(processed, "continue");
+      }
+
+      for (let i = 0; i < processedOutputs.length; i++) {
+        for (let j = i + 1; j < processedOutputs.length; j++) {
+          const outputI = processedOutputs[i];
+          const outputJ = processedOutputs[j];
+          const originalI = outputs[i];
+          if (outputI && outputJ && originalI) {
+            const combined = outputI + outputJ;
+            const fullCombined = combined.split(originalI).length - 1;
+            expect(fullCombined).toBeLessThanOrEqual(1);
+          }
+        }
       }
     }
-  });
+  );
 });

@@ -1,39 +1,18 @@
-import { describe, test, expect, beforeEach } from "bun:test";
+import { describe, expect } from "bun:test";
 import { FoxTweaks } from "../core";
 import { Paragraph } from "./paragraph";
-
-interface History {
-  text: string;
-  type: "continue" | "say" | "do" | "story" | "see" | "start" | "unknown";
-}
+import { testWithAiDungeonEnvironment, createConfigCard, addHistoryAction } from "../test-utils";
 
 describe("Paragraph Module - Integration Tests", () => {
-  beforeEach(() => {
-    (globalThis as any).log = () => {};
-    (globalThis as any).storyCards = [];
-    (globalThis as any).state = {};
-    (globalThis as any).info = {};
-    (globalThis as any).addStoryCard = () => {};
-  });
 
-  test("should format output with doubleNewline formatting", () => {
-    (globalThis as any).history = [];
+  testWithAiDungeonEnvironment("should format output with basic formatting", () => {
+    createConfigCard(`--- Paragraph ---
+Enable: true
+FormattingType: basic
+IndentParagraphs: false`);
 
     const core = new FoxTweaks();
     core.registerModule(Paragraph);
-
-    const configCard = {
-      id: 0,
-      title: "FoxTweaks Config",
-      keys: "Configure FoxTweaks behavior",
-      description: `--- Paragraph ---
-Enable: true
-FormattingType: doubleNewline
-IndentParagraphs: false`,
-      type: "class",
-      entry: "",
-    };
-    (globalThis as any).storyCards = [configCard];
 
     const hooks = core.createHooks();
 
@@ -43,24 +22,16 @@ IndentParagraphs: false`,
     expect(processed).toContain("\n\n");
   });
 
-  test("should indent paragraphs when enabled", () => {
-    (globalThis as any).history = [];
+  testWithAiDungeonEnvironment("should indent paragraphs when enabled", () => {
+    createConfigCard(`--- Paragraph ---
+Enable: true
+FormattingType: basic
+IndentParagraphs: true`);
+
+    addHistoryAction("You enter the room.", "do");
 
     const core = new FoxTweaks();
     core.registerModule(Paragraph);
-
-    const configCard = {
-      id: 0,
-      title: "FoxTweaks Config",
-      keys: "Configure FoxTweaks behavior",
-      description: `--- Paragraph ---
-Enable: true
-FormattingType: doubleNewline
-IndentParagraphs: true`,
-      type: "class",
-      entry: "",
-    };
-    (globalThis as any).storyCards = [configCard];
 
     const hooks = core.createHooks();
 
@@ -70,24 +41,14 @@ IndentParagraphs: true`,
     expect(processed).toContain("    ");
   });
 
-  test("should not modify output when disabled", () => {
-    (globalThis as any).history = [];
+  testWithAiDungeonEnvironment("should not modify output when disabled", () => {
+    createConfigCard(`--- Paragraph ---
+Enable: false
+FormattingType: basic
+IndentParagraphs: false`);
 
     const core = new FoxTweaks();
     core.registerModule(Paragraph);
-
-    const configCard = {
-      id: 0,
-      title: "FoxTweaks Config",
-      keys: "Configure FoxTweaks behavior",
-      description: `--- Paragraph ---
-Enable: false
-FormattingType: doubleNewline
-IndentParagraphs: false`,
-      type: "class",
-      entry: "",
-    };
-    (globalThis as any).storyCards = [configCard];
 
     const hooks = core.createHooks();
 
@@ -97,24 +58,14 @@ IndentParagraphs: false`,
     expect(processed).toBe(output);
   });
 
-  test("should handle formatting with none type", () => {
-    (globalThis as any).history = [];
-
-    const core = new FoxTweaks();
-    core.registerModule(Paragraph);
-
-    const configCard = {
-      id: 0,
-      title: "FoxTweaks Config",
-      keys: "Configure FoxTweaks behavior",
-      description: `--- Paragraph ---
+  testWithAiDungeonEnvironment("should handle formatting with none type", () => {
+    createConfigCard(`--- Paragraph ---
 Enable: true
 FormattingType: none
-IndentParagraphs: false`,
-      type: "class",
-      entry: "",
-    };
-    (globalThis as any).storyCards = [configCard];
+IndentParagraphs: false`);
+
+    const core = new FoxTweaks();
+    core.registerModule(Paragraph);
 
     const hooks = core.createHooks();
 
@@ -124,37 +75,23 @@ IndentParagraphs: false`,
     expect(processed).toBe(output);
   });
 
-  test("should handle successive AI outputs consistently", () => {
-    const initialHistory: History[] = [
-      { text: "You enter the room.", type: "do" },
-    ];
-    (globalThis as any).history = initialHistory;
+  testWithAiDungeonEnvironment("should handle successive AI outputs consistently", () => {
+    createConfigCard(`--- Paragraph ---
+Enable: true
+FormattingType: basic
+IndentParagraphs: false`);
+
+    addHistoryAction("You enter the room.", "do");
 
     const core = new FoxTweaks();
     core.registerModule(Paragraph);
-
-    const configCard = {
-      id: 0,
-      title: "FoxTweaks Config",
-      keys: "Configure FoxTweaks behavior",
-      description: `--- Paragraph ---
-Enable: true
-FormattingType: doubleNewline
-IndentParagraphs: false`,
-      type: "class",
-      entry: "",
-    };
-    (globalThis as any).storyCards = [configCard];
 
     const hooks = core.createHooks();
 
     const firstOutput = "The room is dark.\nYou see a door.";
     const processedFirst = hooks.onOutput(firstOutput);
 
-    (globalThis as any).history = [
-      ...initialHistory,
-      { text: processedFirst, type: "continue" },
-    ];
+    addHistoryAction(processedFirst, "continue");
 
     const secondOutput = "You approach the door.\nIt's locked.";
     const processedSecond = hooks.onOutput(secondOutput);
@@ -164,24 +101,14 @@ IndentParagraphs: false`,
     expect(newlineCount).toBeGreaterThan(1);
   });
 
-  test("should handle empty output gracefully", () => {
-    (globalThis as any).history = [];
+  testWithAiDungeonEnvironment("should handle empty output gracefully", () => {
+    createConfigCard(`--- Paragraph ---
+Enable: true
+FormattingType: basic
+IndentParagraphs: false`);
 
     const core = new FoxTweaks();
     core.registerModule(Paragraph);
-
-    const configCard = {
-      id: 0,
-      title: "FoxTweaks Config",
-      keys: "Configure FoxTweaks behavior",
-      description: `--- Paragraph ---
-Enable: true
-FormattingType: doubleNewline
-IndentParagraphs: false`,
-      type: "class",
-      entry: "",
-    };
-    (globalThis as any).storyCards = [configCard];
 
     const hooks = core.createHooks();
 
@@ -191,24 +118,14 @@ IndentParagraphs: false`,
     expect(processed).toBe("");
   });
 
-  test("should preserve existing double newlines", () => {
-    (globalThis as any).history = [];
+  testWithAiDungeonEnvironment("should preserve existing double newlines", () => {
+    createConfigCard(`--- Paragraph ---
+Enable: true
+FormattingType: basic
+IndentParagraphs: false`);
 
     const core = new FoxTweaks();
     core.registerModule(Paragraph);
-
-    const configCard = {
-      id: 0,
-      title: "FoxTweaks Config",
-      keys: "Configure FoxTweaks behavior",
-      description: `--- Paragraph ---
-Enable: true
-FormattingType: doubleNewline
-IndentParagraphs: false`,
-      type: "class",
-      entry: "",
-    };
-    (globalThis as any).storyCards = [configCard];
 
     const hooks = core.createHooks();
 

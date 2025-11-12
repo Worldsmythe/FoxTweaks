@@ -1,5 +1,5 @@
-import type { Module, History, HookContext } from "../types";
-import { isActionType } from "../utils/history";
+import type { Module, HookContext } from "../types";
+import { isActionType } from "../utils/historyHelpers";
 import { booleanValidator, enumValidator } from "../utils/validation";
 
 type FormattingType = "none" | "basic" | "empty-line" | "newline";

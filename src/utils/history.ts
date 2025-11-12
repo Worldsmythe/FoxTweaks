@@ -1,4 +1,3 @@
-import type { History } from "../types";
 
 declare const history: History[] | undefined;
 

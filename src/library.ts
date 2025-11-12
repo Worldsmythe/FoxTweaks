@@ -28,8 +28,8 @@ import { BetterYou } from "./modules/betteryou";
 import { MarkdownHeaders } from "./modules/markdownHeaders";
 import { NarrativeChecklist } from "./modules/narrativeChecklist";
 
-import { pinAndSortCards, findCard } from "./utils/cards";
-import { getLastAction, getLastActionOfType } from "./utils/history";
+import { pinAndSortCards, findCard } from "./utils/storyCardHelpers";
+import { getLastAction, getLastActionOfType } from "./utils/historyHelpers";
 import { splitIntoSentences, calculateSimilarity } from "./utils/similarity";
 
 const core = new FoxTweaksCore();

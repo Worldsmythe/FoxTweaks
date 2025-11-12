@@ -1,36 +1,20 @@
-import { describe, test, expect, beforeEach } from "bun:test";
+import { describe, expect } from "bun:test";
 import { FoxTweaks } from "../core";
 import { BetterYou } from "./betteryou";
+import { testWithAiDungeonEnvironment, createConfigCard } from "../test-utils";
 
 describe("BetterYou Module - Integration Tests", () => {
-  beforeEach(() => {
-    (globalThis as any).log = () => {};
-    (globalThis as any).storyCards = [];
-    (globalThis as any).state = {};
-    (globalThis as any).info = {};
-    (globalThis as any).history = [];
-    (globalThis as any).addStoryCard = () => {};
-  });
-
-  test("should replace me/mine with you/yours in player input", () => {
-    const core = new FoxTweaks();
-    core.registerModule(BetterYou);
-
-    const configCard = {
-      id: 0,
-      title: "FoxTweaks Config",
-      keys: "Configure FoxTweaks behavior",
-      description: `--- Better You ---
+  testWithAiDungeonEnvironment("should replace me/mine with you/yours in player input", () => {
+    createConfigCard(`--- Better You ---
 Enable: true
 Replacements:
   me: you
   mine: yours
   Me: You
-  Mine: Yours`,
-      type: "class",
-      entry: "",
-    };
-    (globalThis as any).storyCards = [configCard];
+  Mine: Yours`);
+
+    const core = new FoxTweaks();
+    core.registerModule(BetterYou);
 
     const hooks = core.createHooks();
 
@@ -43,22 +27,14 @@ Replacements:
     expect(processed).not.toMatch(/\bmine\b/);
   });
 
-  test("should not modify input when disabled", () => {
-    const core = new FoxTweaks();
-    core.registerModule(BetterYou);
-
-    const configCard = {
-      id: 0,
-      title: "FoxTweaks Config",
-      keys: "Configure FoxTweaks behavior",
-      description: `--- Better You ---
+  testWithAiDungeonEnvironment("should not modify input when disabled", () => {
+    createConfigCard(`--- Better You ---
 Enable: false
 Replacements:
-  me: you`,
-      type: "class",
-      entry: "",
-    };
-    (globalThis as any).storyCards = [configCard];
+  me: you`);
+
+    const core = new FoxTweaks();
+    core.registerModule(BetterYou);
 
     const hooks = core.createHooks();
 
@@ -68,23 +44,15 @@ Replacements:
     expect(processed).toBe(input);
   });
 
-  test("should only process lines starting with '> You'", () => {
-    const core = new FoxTweaks();
-    core.registerModule(BetterYou);
-
-    const configCard = {
-      id: 0,
-      title: "FoxTweaks Config",
-      keys: "Configure FoxTweaks behavior",
-      description: `--- Better You ---
+  testWithAiDungeonEnvironment("should only process lines starting with '> You'", () => {
+    createConfigCard(`--- Better You ---
 Enable: true
 Replacements:
   me: you
-  mine: yours`,
-      type: "class",
-      entry: "",
-    };
-    (globalThis as any).storyCards = [configCard];
+  mine: yours`);
+
+    const core = new FoxTweaks();
+    core.registerModule(BetterYou);
 
     const hooks = core.createHooks();
 
@@ -94,22 +62,14 @@ Replacements:
     expect(processed).toBe(input);
   });
 
-  test("should handle dialogue lines starting with '> \"'", () => {
-    const core = new FoxTweaks();
-    core.registerModule(BetterYou);
-
-    const configCard = {
-      id: 0,
-      title: "FoxTweaks Config",
-      keys: "Configure FoxTweaks behavior",
-      description: `--- Better You ---
+  testWithAiDungeonEnvironment("should handle dialogue lines starting with '> \"'", () => {
+    createConfigCard(`--- Better You ---
 Enable: true
 Replacements:
-  me: you`,
-      type: "class",
-      entry: "",
-    };
-    (globalThis as any).storyCards = [configCard];
+  me: you`);
+
+    const core = new FoxTweaks();
+    core.registerModule(BetterYou);
 
     const hooks = core.createHooks();
 
@@ -119,15 +79,8 @@ Replacements:
     expect(processed).toContain("me");
   });
 
-  test("should handle capitalization replacements with punctuation (. you -> . You)", () => {
-    const core = new FoxTweaks();
-    core.registerModule(BetterYou);
-
-    const configCard = {
-      id: 0,
-      title: "FoxTweaks Config",
-      keys: "Configure FoxTweaks behavior",
-      description: `--- Better You ---
+  testWithAiDungeonEnvironment("should handle capitalization replacements with punctuation (. you -> . You)", () => {
+    createConfigCard(`--- Better You ---
 Enable: true
 Replacements:
   me: you
@@ -136,11 +89,10 @@ Replacements:
   Mine: Yours
 Patterns:
   . you: . You
-  ." you: ." You`,
-      type: "class",
-      entry: "",
-    };
-    (globalThis as any).storyCards = [configCard];
+  ." you: ." You`);
+
+    const core = new FoxTweaks();
+    core.registerModule(BetterYou);
 
     const hooks = core.createHooks();
 
@@ -153,23 +105,15 @@ Patterns:
     expect(processed).not.toContain('." you');
   });
 
-  test("should chain replacements correctly (regression test)", () => {
-    const core = new FoxTweaks();
-    core.registerModule(BetterYou);
-
-    const configCard = {
-      id: 0,
-      title: "FoxTweaks Config",
-      keys: "Configure FoxTweaks behavior",
-      description: `--- Better You ---
+  testWithAiDungeonEnvironment("should chain replacements correctly (regression test)", () => {
+    createConfigCard(`--- Better You ---
 Enable: true
 Replacements:
   me: you
-  you: them`,
-      type: "class",
-      entry: "",
-    };
-    (globalThis as any).storyCards = [configCard];
+  you: them`);
+
+    const core = new FoxTweaks();
+    core.registerModule(BetterYou);
 
     const hooks = core.createHooks();
 

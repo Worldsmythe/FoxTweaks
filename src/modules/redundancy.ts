@@ -1,5 +1,5 @@
 import type { Module, HookContext } from "../types";
-import { isActionType } from "../utils/history";
+import { isActionType } from "../utils/historyHelpers";
 import { checkAndMerge } from "../utils/similarity";
 import { booleanValidator, numberValidator } from "../utils/validation";
 

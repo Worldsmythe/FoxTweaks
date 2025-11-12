@@ -13,7 +13,7 @@ export function testWithAiDungeonEnvironment(
     globalThis.history = [];
     globalThis.info = {
       actionCount: 0,
-      characters: [],
+      characterNames: [],
     };
     globalThis.state = {
       memory: {},
@@ -63,7 +63,9 @@ export function testWithAiDungeonEnvironment(
       index: number,
       keys: string,
       entry: string,
-      type: string
+      type?: string,
+      name?: string,
+      notes?: string
     ): void => {
       const existing = globalThis.storyCards[index];
       if (existing) {
@@ -71,9 +73,9 @@ export function testWithAiDungeonEnvironment(
           id: existing.id,
           keys: keys ? [keys] : undefined,
           entry,
-          type,
-          title: existing.title,
-          description: existing.description,
+          type: type ?? existing.type,
+          title: name ?? existing.title,
+          description: notes ?? existing.description,
         };
       } else {
         throw new Error(

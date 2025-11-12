@@ -360,17 +360,6 @@ export class FoxTweaks {
     onOutput: (text: string) => string;
     reformatContext: (text: string) => string;
   } {
-    const isAutoCardsActive = (): boolean => {
-      const globalState = state;
-      if (!globalState) return false;
-
-      return !!(
-        globalState.AC?.signal?.generate ||
-        (globalState.AC?.generation?.queue?.length ?? 0) > 0 ||
-        globalState.AC?.signal?.compress
-      );
-    };
-
     const createAIContext = (moduleName: string) => {
       const aiState = this.getAIState();
 
@@ -390,14 +379,19 @@ export class FoxTweaks {
             responseMarker,
           };
 
-          if (isAutoCardsActive()) {
+          if (aiState.activePrompt) {
             aiState.promptQueue.push(request);
             return;
           }
 
-          if (aiState.activePrompt) {
-            aiState.promptQueue.push(request);
-            return;
+          if (typeof AutoCards === "function") {
+            try {
+              AutoCards?.()?.API?.postponeEvents?.(3);
+            } catch (e) {
+              if (DEBUG()) {
+                log(`[FoxTweaks] Failed to postpone AutoCards: ${e}`);
+              }
+            }
           }
 
           aiState.activePrompt = request;
@@ -493,7 +487,7 @@ export class FoxTweaks {
 
       const aiState = this.getAIState();
 
-      if (!isAutoCardsActive() && aiState.activePrompt) {
+      if (aiState.activePrompt) {
         currentText = currentText + aiState.activePrompt.prompt;
       }
 
@@ -530,12 +524,18 @@ export class FoxTweaks {
 
         aiState.activePrompt = null;
 
-        if (
-          !isAutoCardsActive() &&
-          aiState.promptQueue &&
-          aiState.promptQueue.length > 0
-        ) {
+        if (aiState.promptQueue && aiState.promptQueue.length > 0) {
           aiState.activePrompt = aiState.promptQueue.shift() || null;
+
+          if (aiState.activePrompt && typeof AutoCards === "function") {
+            try {
+              AutoCards?.()?.API?.postponeEvents?.(3);
+            } catch (e) {
+              if (DEBUG()) {
+                log(`[FoxTweaks] Failed to postpone AutoCards: ${e}`);
+              }
+            }
+          }
         }
       }
 

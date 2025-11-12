@@ -1,5 +1,3 @@
-import type { StoryCard } from "../types";
-
 declare const storyCards: StoryCard[] | undefined;
 declare function addStoryCard(keys: string): void;
 
@@ -10,20 +8,25 @@ declare function addStoryCard(keys: string): void;
  */
 export function findCard(titleOrKeys: string): StoryCard | null {
   if (!storyCards) return null;
-  return (
-    storyCards.find(
-      (c) => c.title === titleOrKeys || c.keys?.includes(titleOrKeys)
-    ) || null
-  );
+
+  for (let i = 0; i < storyCards.length; i++) {
+    const card = storyCards[i];
+    if (
+      card &&
+      (card.title === titleOrKeys || card.keys?.includes(titleOrKeys))
+    ) {
+      return card;
+    }
+  }
+
+  return null;
 }
 
 /**
  * Pins specified cards to the top and sorts all cards by date
  * @param pinnedCards - Card or array of cards to pin to the top
  */
-export function pinAndSortCards(
-  pinnedCards: StoryCard | StoryCard[]
-): void {
+export function pinAndSortCards(pinnedCards: StoryCard | StoryCard[]): void {
   if (!storyCards || storyCards.length < 2) return;
 
   storyCards.sort((a, b) => {

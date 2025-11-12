@@ -30,10 +30,14 @@ export const Redundancy: Module<RedundancyConfig> = (() => {
       return text;
     }
 
-    const lastAIMessage = context.history
-      .slice()
-      .reverse()
-      .find(action => isActionType(action, ["continue"]));
+    let lastAIMessage;
+    for (let i = context.history.length - 1; i >= 0; i--) {
+      const action = context.history[i];
+      if (action && isActionType(action, ["continue"])) {
+        lastAIMessage = action;
+        break;
+      }
+    }
 
     if (!lastAIMessage) {
       return text;

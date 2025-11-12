@@ -5,11 +5,16 @@ import { booleanValidator, objectValidator } from "../utils/validation";
 export interface BetterYouConfig {
   enable: boolean;
   replacements: Record<string, string>;
+  patterns: Record<string, string>;
 }
 
 export const BetterYou: Module<BetterYouConfig> = (() => {
   function validateConfig(raw: Record<string, unknown>): BetterYouConfig {
-    const rawReplacements = objectValidator<Record<string, unknown>>(raw, "replacements");
+    const rawReplacements = objectValidator<Record<string, unknown>>(
+      raw,
+      "replacements",
+      {}
+    );
     const replacements: Record<string, string> = {};
 
     for (const [key, value] of Object.entries(rawReplacements)) {
@@ -18,10 +23,36 @@ export const BetterYou: Module<BetterYouConfig> = (() => {
       }
     }
 
+    const rawPatterns = objectValidator<Record<string, unknown>>(
+      raw,
+      "patterns",
+      {}
+    );
+    const patterns: Record<string, string> = {};
+
+    for (const [key, value] of Object.entries(rawPatterns)) {
+      if (typeof value === "string") {
+        patterns[key] = value;
+      }
+    }
+
     return {
       enable: booleanValidator(raw, "enable"),
       replacements,
+      patterns,
     };
+  }
+
+  function applyPatterns(
+    line: string,
+    patterns: Record<string, string>
+  ): string {
+    let result = line;
+    for (const [from, to] of Object.entries(patterns)) {
+      const regex = new RegExp(escapeRegex(from), "g");
+      result = result.replace(regex, to);
+    }
+    return result;
   }
 
   function replaceOutsideQuotes(
@@ -31,20 +62,32 @@ export const BetterYou: Module<BetterYouConfig> = (() => {
     const parts = line.split('"');
 
     for (let i = 0; i < parts.length; i += 2) {
-      const part = parts[i];
-      if (part !== undefined) {
+      let part = parts[i];
+      if (part) {
         for (const [from, to] of Object.entries(replacements)) {
           const regex = new RegExp(`\\b${escapeRegex(from)}\\b`, "g");
-          parts[i] = parts[i].replace(regex, to);
+          part = part.replace(regex, to);
         }
+        parts[i] = part;
       }
     }
 
     return parts.join('"');
   }
 
-  function onInput(text: string, config: BetterYouConfig, context: HookContext): string {
-    if (!config.enable || Object.keys(config.replacements).length === 0) {
+  function onInput(
+    text: string,
+    config: BetterYouConfig,
+    context: HookContext
+  ): string {
+    if (!config.enable) {
+      return text;
+    }
+
+    if (
+      Object.keys(config.replacements).length === 0 &&
+      Object.keys(config.patterns).length === 0
+    ) {
       return text;
     }
 
@@ -58,7 +101,20 @@ export const BetterYou: Module<BetterYouConfig> = (() => {
         continue;
       }
 
-      lines[i] = replaceOutsideQuotes(line, config.replacements);
+      let processedLine = line;
+
+      if (Object.keys(config.patterns).length > 0) {
+        processedLine = applyPatterns(processedLine, config.patterns);
+      }
+
+      if (Object.keys(config.replacements).length > 0) {
+        processedLine = replaceOutsideQuotes(
+          processedLine,
+          config.replacements
+        );
+      }
+
+      lines[i] = processedLine;
     }
 
     return lines.join("\n");
@@ -74,6 +130,8 @@ Replacements:
   mine: yours
   Me: You
   Mine: Yours
+# Pattern replacements applied everywhere (including dialogue):
+Patterns:
   . you: . You
   ." you: ." You`,
     validateConfig,

@@ -64,14 +64,17 @@ Would be merged into:
 
 ### Better You
 
-Replace the AI's pronouns with more appropriate ones. Covers the following cases:
+Replace pronouns and fix capitalization for better narrative flow. Supports two types of replacements:
 
+**Replacements** (applied outside dialogue only):
 - "me" -> "you"
 - "mine" -> "yours"
 - "Me" -> "You"
 - "Mine" -> "Yours"
+
+**Patterns** (applied everywhere, including dialogue boundaries):
 - ". you" -> ". You"
-- '". you" -> '". You"
+- '." you' -> '." You'
 
 ### Narrative Checklist
 
@@ -148,6 +151,8 @@ Replacements:
   mine: yours
   Me: You
   Mine: Yours
+# Pattern replacements applied everywhere (including dialogue):
+Patterns:
   . you: . You
   ." you: ." You
 

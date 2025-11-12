@@ -118,4 +118,65 @@ Replacements:
 
     expect(processed).toContain("me");
   });
+
+  test("should handle capitalization replacements with punctuation (. you -> . You)", () => {
+    const core = new FoxTweaks();
+    core.registerModule(BetterYou);
+
+    const configCard = {
+      id: 0,
+      title: "FoxTweaks Config",
+      keys: "Configure FoxTweaks behavior",
+      description: `--- Better You ---
+Enable: true
+Replacements:
+  me: you
+  mine: yours
+  Me: You
+  Mine: Yours
+Patterns:
+  . you: . You
+  ." you: ." You`,
+      type: "class",
+      entry: "",
+    };
+    (globalThis as any).storyCards = [configCard];
+
+    const hooks = core.createHooks();
+
+    const input = '> You tell me the story. you listen carefully. "That\'s interesting." you say.';
+    const processed = hooks.onInput(input);
+
+    expect(processed).toContain(". You listen");
+    expect(processed).toContain('." You say');
+    expect(processed).not.toContain(". you");
+    expect(processed).not.toContain('." you');
+  });
+
+  test("should chain replacements correctly (regression test)", () => {
+    const core = new FoxTweaks();
+    core.registerModule(BetterYou);
+
+    const configCard = {
+      id: 0,
+      title: "FoxTweaks Config",
+      keys: "Configure FoxTweaks behavior",
+      description: `--- Better You ---
+Enable: true
+Replacements:
+  me: you
+  you: them`,
+      type: "class",
+      entry: "",
+    };
+    (globalThis as any).storyCards = [configCard];
+
+    const hooks = core.createHooks();
+
+    const input = "> You see me standing there.";
+    const processed = hooks.onInput(input);
+
+    expect(processed).toContain("them");
+    expect(processed).not.toContain("me");
+  });
 });

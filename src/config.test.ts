@@ -70,8 +70,10 @@ describe("parseConfig - Full String Parsing", () => {
       mine: "yours",
       Me: "You",
       Mine: "Yours",
+    });
+    expect(config.betterYou.patterns).toEqual({
       ". you": ". You",
-      '.\" you': '.\" You',
+      '." you': '." You',
     });
   });
 

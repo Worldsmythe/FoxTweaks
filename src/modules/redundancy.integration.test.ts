@@ -90,7 +90,7 @@ SimilarityThreshold: 70`,
   );
 
   testWithAiDungeonEnvironment(
-    "should merge when AI produces legitimately overlapping content",
+    "should remove overlapping content from AI output",
     () => {
       const initialHistory: History[] = [
         { text: "You approach the door.", type: "do" },
@@ -122,9 +122,9 @@ SimilarityThreshold: 70`,
         "It has strange markings. The markings glow faintly in the dark.";
       const processed = hooks.onOutput(overlappingOutput);
 
-      expect(processed).toContain("You see a wooden door");
-      expect(processed).toContain("The markings glow faintly in the dark");
-      expect(processed.split("It has strange markings").length).toBe(2);
+      expect(processed).toBe("The markings glow faintly in the dark.");
+      expect(processed).not.toContain("You see a wooden door");
+      expect(processed).not.toContain("It has strange markings");
     }
   );
 

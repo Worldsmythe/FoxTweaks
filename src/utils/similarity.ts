@@ -252,9 +252,9 @@ export function checkAndMerge(
   );
 
   if (overlapCount > 0) {
-    const remainingSentences1 = sentences1.slice(0, -overlapCount);
+    const remainingSentences2 = sentences2.slice(overlapCount);
 
-    if (remainingSentences1.length === 0) {
+    if (remainingSentences2.length === 0) {
       return {
         shouldMerge: true,
         mergedContent: currTrimmed,
@@ -262,16 +262,22 @@ export function checkAndMerge(
       };
     }
 
-    const part1 = remainingSentences1.join(" ");
-    const hasCJK = /[\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FFF]/.test(
-      part1 + currTrimmed
-    );
-    const separator = hasCJK ? "" : " ";
-    const merged = part1 + separator + currTrimmed;
+    let searchPos = 0;
+    for (let i = 0; i < overlapCount; i++) {
+      const sentence = sentences2[i];
+      if (sentence) {
+        const foundPos = currTrimmed.indexOf(sentence, searchPos);
+        if (foundPos !== -1) {
+          searchPos = foundPos + sentence.length;
+        }
+      }
+    }
+
+    const deduplicatedCurrent = currTrimmed.substring(searchPos).trim();
 
     return {
       shouldMerge: true,
-      mergedContent: merged.trim(),
+      mergedContent: deduplicatedCurrent,
       reason: "sentence-overlap",
     };
   }

@@ -3,7 +3,7 @@ import { checkAndMerge } from "./similarity";
 
 describe("checkAndMergeMessages", () => {
   describe("user-provided examples", () => {
-    it("should merge messages with same quote but different dialogue tag", () => {
+    it("should remove redundant quote from new output", () => {
       const msg1 =
         'The interrogation had been going on for hours. The dim light flickered overhead, casting long shadows across the stone walls. Despite the pain, he maintained his composure. "I am not a traitor," he sneered.';
       const msg2 =
@@ -13,15 +13,13 @@ describe("checkAndMergeMessages", () => {
 
       expect(result.shouldMerge).toBe(true);
       expect(result.reason).toBe("sentence-overlap");
-      // Should preserve everything from msg1 except the overlapping sentence
-      expect(result.mergedContent).toContain(
-        "The interrogation had been going on for hours"
-      );
-      expect(result.mergedContent).toContain("he shouted");
+      expect(result.mergedContent).toContain("He writhed");
       expect(result.mergedContent).toContain("guards exchanged glances");
+      expect(result.mergedContent).not.toContain("interrogation");
+      expect(result.mergedContent).not.toContain("I am not a traitor");
     });
 
-    it("should merge messages with overlapping action sequences", () => {
+    it("should remove overlapping action sequences from new output", () => {
       const msg1 =
         'The moment stretched between you, thick with tension and unspoken words. Her breath came in short gasps, her pupils dilated. Pulling back just enough to meet her dazed eyes, you grin. "You know."';
       const msg2 =
@@ -31,12 +29,9 @@ describe("checkAndMergeMessages", () => {
 
       expect(result.shouldMerge).toBe(true);
       expect(result.reason).toBe("sentence-overlap");
-      // Should preserve the setup from msg1 and continuation from msg2
-      expect(result.mergedContent).toContain(
-        "The moment stretched between you"
-      );
-      expect(result.mergedContent).toContain("you murmur");
       expect(result.mergedContent).toContain("She shivers");
+      expect(result.mergedContent).not.toContain("The moment stretched");
+      expect(result.mergedContent).not.toContain("you grin");
     });
   });
 
@@ -49,7 +44,7 @@ describe("checkAndMergeMessages", () => {
 
       expect(result.shouldMerge).toBe(true);
       expect(result.reason).toBe("sentence-overlap");
-      expect(result.mergedContent).toBe("First part. " + msg2);
+      expect(result.mergedContent).toBe("Then it jumped.");
     });
 
     it("should detect multiple sentence overlap", () => {
@@ -60,7 +55,7 @@ describe("checkAndMergeMessages", () => {
 
       expect(result.shouldMerge).toBe(true);
       expect(result.reason).toBe("sentence-overlap");
-      expect(result.mergedContent).toBe("Introduction here. " + msg2);
+      expect(result.mergedContent).toBe("New content follows.");
     });
 
     it("should not merge when no overlap exists", () => {
@@ -117,14 +112,14 @@ describe("checkAndMergeMessages", () => {
   });
 
   describe("complete message overlap", () => {
-    it("should replace when all of message 1 overlaps with start of message 2", () => {
+    it("should remove overlap when all of message 1 overlaps with start of message 2", () => {
       const msg1 = "The beginning of the story.";
       const msg2 = "The beginning of the story. And then it continues further.";
 
       const result = checkAndMerge(msg1, msg2);
 
       expect(result.shouldMerge).toBe(true);
-      expect(result.mergedContent).toBe(msg2);
+      expect(result.mergedContent).toBe("And then it continues further.");
     });
 
     it("should detect full duplicates", () => {
@@ -208,26 +203,28 @@ describe("checkAndMergeMessages", () => {
   });
 
   describe("partial overlap scenarios", () => {
-    it("should only remove overlapping portion from message 1", () => {
+    it("should only remove overlapping portion from message 2", () => {
       const msg1 = "Unique start. Shared middle.";
       const msg2 = "Shared middle. Unique end.";
 
       const result = checkAndMerge(msg1, msg2);
 
       expect(result.shouldMerge).toBe(true);
-      expect(result.mergedContent).toContain("Unique start");
-      expect(result.mergedContent).toContain("Unique end");
+      expect(result.mergedContent).toBe("Unique end.");
+      expect(result.mergedContent).not.toContain("Unique start");
+      expect(result.mergedContent).not.toContain("Shared middle");
     });
 
-    it("should preserve message 1 prefix when overlap is at end", () => {
+    it("should remove overlap from start of message 2", () => {
       const msg1 = "Important setup. Then the action.";
       const msg2 = "Then the action. And resolution.";
 
       const result = checkAndMerge(msg1, msg2);
 
       expect(result.shouldMerge).toBe(true);
-      expect(result.mergedContent).toContain("Important setup");
-      expect(result.mergedContent).toContain("And resolution");
+      expect(result.mergedContent).toBe("And resolution.");
+      expect(result.mergedContent).not.toContain("Important setup");
+      expect(result.mergedContent).not.toContain("Then the action");
     });
   });
 
@@ -328,30 +325,25 @@ describe("checkAndMergeMessages", () => {
   });
 
   describe("proper spacing in merged content", () => {
-    it("should preserve input spacing when merging (spacing fixed at generation time)", () => {
-      // Note: Spacing should be added at AI generation time, not during merge
+    it("should preserve input spacing when removing overlap", () => {
       const msg1 = "Setup text. Overlapping sentence.";
       const msg2 = "Overlapping sentence. Continuation with space.";
 
       const result = checkAndMerge(msg1, msg2);
 
       expect(result.shouldMerge).toBe(true);
-      expect(result.mergedContent).toBe(
-        "Setup text. Overlapping sentence. Continuation with space."
-      );
-      // The merged content should have proper spacing throughout
-      expect(result.mergedContent).not.toContain("  "); // No double spaces
+      expect(result.mergedContent).toBe("Continuation with space.");
+      expect(result.mergedContent).not.toContain("  ");
     });
 
-    it("should not add extra space when continuation already has space", () => {
+    it("should remove overlap and preserve spacing in remaining text", () => {
       const msg1 = "First part. Shared end.";
       const msg2 = "Shared end. New part.";
 
       const result = checkAndMerge(msg1, msg2);
 
       expect(result.shouldMerge).toBe(true);
-      expect(result.mergedContent).toBe("First part. Shared end. New part.");
-      // Should not have double spaces
+      expect(result.mergedContent).toBe("New part.");
       expect(result.mergedContent).not.toContain("  ");
     });
 
@@ -362,21 +354,18 @@ describe("checkAndMergeMessages", () => {
       const result = checkAndMerge(msg1, msg2);
 
       expect(result.shouldMerge).toBe(true);
-      // Japanese doesn't use spaces between sentences
-      expect(result.mergedContent).toBe("最初の文。次の部分。追加の文。");
+      expect(result.mergedContent).toBe("追加の文。");
     });
 
-    it("should preserve spacing when merging with properly formatted messages", () => {
+    it("should preserve spacing when removing overlap from properly formatted messages", () => {
       const msg1 = "Introduction. Middle part. End overlap.";
       const msg2 = "Middle part. End overlap. Continuation text.";
 
       const result = checkAndMerge(msg1, msg2);
 
       expect(result.shouldMerge).toBe(true);
-      expect(result.mergedContent).toBe(
-        "Introduction. Middle part. End overlap. Continuation text."
-      );
-      expect(result.mergedContent).not.toContain("  "); // No double spaces
+      expect(result.mergedContent).toBe("Continuation text.");
+      expect(result.mergedContent).not.toContain("  ");
     });
   });
 });

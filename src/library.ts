@@ -27,6 +27,7 @@ import { Redundancy } from "./modules/redundancy";
 import { BetterYou } from "./modules/betteryou";
 import { MarkdownHeaders } from "./modules/markdownHeaders";
 import { NarrativeChecklist } from "./modules/narrativeChecklist";
+import { DebugStart, DebugEnd } from "./modules/debug";
 
 import { pinAndSortCards, findCard } from "./utils/storyCardHelpers";
 import { getLastAction, getLastActionOfType } from "./utils/historyHelpers";
@@ -34,6 +35,7 @@ import { splitIntoSentences, calculateSimilarity } from "./utils/similarity";
 
 const core = new FoxTweaksCore();
 
+core.registerModule(DebugStart);
 core.registerModule(DiceRoll);
 core.registerModule(Interject);
 core.registerModule(Paragraph);
@@ -41,6 +43,7 @@ core.registerModule(Redundancy);
 core.registerModule(BetterYou);
 core.registerModule(NarrativeChecklist);
 core.registerModule(MarkdownHeaders);
+core.registerModule(DebugEnd);
 
 const hooks = core.createHooks();
 

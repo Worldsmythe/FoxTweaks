@@ -11,6 +11,39 @@
  * - `onModelContext`: Change the text sent to the AI model before generation
  * - `onOutput`: Modify the model's output before showing it to the player
  *
+ * The modifier scripts are expected to look like this:
+ *
+ * ```javascript
+ * const modifier = (text) => {
+ *
+ *   let modifiedText = text
+ *
+ *   // The text passed in is either the user's input or players output to modify.
+ *   if(text.includes('grab a sword')) {
+ *
+ *     // You can modify the state variable to keep track of state throughout the adventure
+ *     state.items = ['sword']
+ *
+ *     // Setting state.memory.context will cause that to be used instead of the user set memory
+ *     state.memory = {context: 'You have a sword.'}
+ *
+ *     // Setting state.message will set an info message that will be displayed in the game
+ *     state.message = 'You got a sword!'
+ *
+ *     // You can log things to the side console when testing with console.log
+ *     console.log('Added a sword to player')
+ *
+ *     modifiedText = text + '\nYou also now have a sword!'
+ *   }
+ *
+ *   // You must return an object with the text property defined.
+ *   return {text: modifiedText}
+ * }
+ *
+ * // Don't modify this part
+ * modifier(text)
+ * ```
+ *
  * Each script run is independent - memory is not shared between runs.
  * Use the `state` object to persist data between turns.
  *
@@ -320,6 +353,19 @@ declare global {
   /**
    * Adds a new story card to the adventure.
    *
+   * Creates a card with a random ID and pushes it to the storyCards array.
+   * The card will be triggered when its keys match content in the recent story.
+   * The `entry` field is what gets injected into the "World Lore" section of context.
+   *
+   * @param keys - Comma-separated keywords that trigger this card's inclusion
+   * @param entry - The text to inject into the AI context when triggered (default: undefined)
+   * @param type - Category for organizing cards (default: "Custom")
+   * @param name - Display name for the card (default: keys)
+   * @param notes - Additional notes stored in description field (default: "")
+   * @param options - Options object with returnCard: false
+   *
+   * @returns The index of the newly added card in the storyCards array or the card object if returnCard is true
+   *
    * @remarks
    * **Reference Implementation:**
    * ```javascript
@@ -337,19 +383,6 @@ declare global {
    *   else return storyCards.length
    * }
    * ```
-   *
-   * Creates a card with a random ID and pushes it to the storyCards array.
-   * The card will be triggered when its keys match content in the recent story.
-   * The `entry` field is what gets injected into the "World Lore" section of context.
-   *
-   * @param keys - Comma-separated keywords that trigger this card's inclusion
-   * @param entry - The text to inject into the AI context when triggered (default: undefined)
-   * @param type - Category for organizing cards (default: "Custom")
-   * @param name - Display name for the card (default: keys)
-   * @param notes - Additional notes stored in description field (default: "")
-   * @param options - Options object with returnCard: false
-   *
-   * @returns The index of the newly added card in the storyCards array or the card object if returnCard is true
    */
   function addStoryCard(
     keys: string,
@@ -386,6 +419,13 @@ declare global {
   /**
    * Removes a story card from the adventure.
    *
+   * Uses splice to remove the card at the specified index.
+   * Throws an error if the card doesn't exist at the specified index.
+   * Use with caution as indices may shift when cards are added/removed.
+   *
+   * @param index - The index of the story card to remove from the storyCards array
+   * @throws Error if no card exists at the given index
+   *
    * @remarks
    * **Reference Implementation:**
    * ```javascript
@@ -395,17 +435,23 @@ declare global {
    * }
    * ```
    *
-   * Uses splice to remove the card at the specified index.
-   * Throws an error if the card doesn't exist at the specified index.
-   * Use with caution as indices may shift when cards are added/removed.
-   *
-   * @param index - The index of the story card to remove from the storyCards array
-   * @throws Error if no card exists at the given index
    */
   function removeStoryCard(index: number): void;
 
   /**
    * Updates an existing story card.
+   *
+   * Replaces the card at the specified index while preserving the id.
+   * Optional parameters (type, name, notes) preserve existing values if not provided.
+   * Throws an error if the card doesn't exist at the specified index.
+   *
+   * @param index - The index of the story card to update
+   * @param keys - New comma-separated keywords for triggering the card
+   * @param entry - New text to inject into context when triggered
+   * @param type - New category for organizing the card (optional, preserves existing)
+   * @param name - New display name for the card (optional, preserves existing)
+   * @param notes - New description/notes (optional, preserves existing)
+   * @throws Error if no card exists at the given index
    *
    * @remarks
    * **Reference Implementation:**
@@ -426,18 +472,6 @@ declare global {
    *   }
    * }
    * ```
-   *
-   * Replaces the card at the specified index while preserving the id.
-   * Optional parameters (type, name, notes) preserve existing values if not provided.
-   * Throws an error if the card doesn't exist at the specified index.
-   *
-   * @param index - The index of the story card to update
-   * @param keys - New comma-separated keywords for triggering the card
-   * @param entry - New text to inject into context when triggered
-   * @param type - New category for organizing the card (optional, preserves existing)
-   * @param name - New display name for the card (optional, preserves existing)
-   * @param notes - New description/notes (optional, preserves existing)
-   * @throws Error if no card exists at the given index
    */
   function updateStoryCard(
     index: number,

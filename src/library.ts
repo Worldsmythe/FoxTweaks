@@ -27,6 +27,7 @@ import { Redundancy } from "./modules/redundancy";
 import { BetterYou } from "./modules/betteryou";
 import { MarkdownHeaders } from "./modules/markdownHeaders";
 import { NarrativeChecklist } from "./modules/narrativeChecklist";
+import { TreeCards } from "./modules/treeCards";
 import { DebugStart, DebugEnd } from "./modules/debug";
 
 import { pinAndSortCards, findCard } from "./utils/storyCardHelpers";
@@ -38,6 +39,7 @@ const core = new FoxTweaksCore();
 core.registerModule(DebugStart);
 core.registerModule(DiceRoll);
 core.registerModule(Interject);
+core.registerModule(TreeCards);
 core.registerModule(Paragraph);
 core.registerModule(Redundancy);
 core.registerModule(BetterYou);

@@ -164,3 +164,204 @@ export function removeSectionHeader(sectionContent: string): string {
 function escapeRegex(str: string): string {
   return str.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
+
+const SENTENCE_END_PATTERN = /[.!?](?:\s+(?=[A-Z])|\s*\n|\s*$)/g;
+
+export function countSentences(text: string): number {
+  if (!text.trim()) return 0;
+
+  const matches = text.match(SENTENCE_END_PATTERN);
+  return matches ? matches.length : 0;
+}
+
+function findSentenceBoundaries(text: string): number[] {
+  const boundaries: number[] = [];
+  let match;
+
+  const pattern = new RegExp(SENTENCE_END_PATTERN.source, "g");
+  while ((match = pattern.exec(text)) !== null) {
+    boundaries.push(match.index + match[0].length);
+  }
+
+  return boundaries;
+}
+
+export interface TruncateOptions {
+  minSentences?: number;
+}
+
+export function truncateSectionFromStart(
+  text: string,
+  sectionName: string,
+  targetChars: number,
+  options?: TruncateOptions
+): string {
+  const minSentences = options?.minSentences ?? 5;
+  const sections = parseContextSections(text);
+  const section = sections.find(s => s.name === sectionName);
+
+  if (!section) {
+    return text;
+  }
+
+  const headerMatch = section.content.match(/^[^\n]+\n/);
+  const header = headerMatch ? headerMatch[0] : "";
+  const body = section.content.slice(header.length);
+
+  if (body.length <= targetChars) {
+    return text;
+  }
+
+  const boundaries = findSentenceBoundaries(body);
+  const totalSentences = boundaries.length;
+
+  if (totalSentences <= minSentences) {
+    return text;
+  }
+
+  const charsToRemove = body.length - targetChars;
+  let cutIndex = 0;
+  let sentencesRemoved = 0;
+  const maxRemovable = totalSentences - minSentences;
+
+  for (let i = 0; i < boundaries.length && sentencesRemoved < maxRemovable; i++) {
+    const boundary = boundaries[i];
+    if (boundary === undefined) continue;
+
+    if (boundary >= charsToRemove) {
+      cutIndex = boundary;
+      break;
+    }
+    cutIndex = boundary;
+    sentencesRemoved++;
+  }
+
+  if (cutIndex === 0) {
+    return text;
+  }
+
+  const truncatedBody = body.slice(cutIndex);
+  const newContent = header + truncatedBody;
+
+  const before = text.slice(0, section.startIndex);
+  const after = text.slice(section.endIndex);
+
+  return before + newContent + after;
+}
+
+export interface InjectOptions {
+  maxChars: number;
+  minSentences?: number;
+  budgetPercentage?: number;
+}
+
+export interface InjectResult {
+  text: string;
+  injected: boolean;
+  charsUsed: number;
+  charsTruncated: number;
+}
+
+export function injectWorldLore(
+  text: string,
+  content: string,
+  options: InjectOptions
+): InjectResult {
+  const { maxChars, minSentences = 5, budgetPercentage = 100 } = options;
+
+  if (!content.trim()) {
+    return { text, injected: false, charsUsed: 0, charsTruncated: 0 };
+  }
+
+  const availableSpace = maxChars - text.length;
+  const budget = Math.floor((availableSpace * budgetPercentage) / 100);
+  const contentWithSeparator = "\n\n" + content;
+  const contentLength = contentWithSeparator.length;
+
+  const sections = parseContextSections(text);
+  const worldLoreSection = sections.find(s => s.name === "World Lore");
+
+  if (!worldLoreSection) {
+    return { text, injected: false, charsUsed: 0, charsTruncated: 0 };
+  }
+
+  if (contentLength <= availableSpace) {
+    if (contentLength > budget) {
+      return { text, injected: false, charsUsed: 0, charsTruncated: 0 };
+    }
+
+    const before = text.slice(0, worldLoreSection.endIndex);
+    const after = text.slice(worldLoreSection.endIndex);
+    const newText = before + contentWithSeparator + after;
+
+    return {
+      text: newText,
+      injected: true,
+      charsUsed: contentLength,
+      charsTruncated: 0,
+    };
+  }
+
+  const overage = text.length + contentLength - maxChars;
+
+  const recentStorySection = sections.find(s => s.name === "Recent Story");
+  if (!recentStorySection) {
+    return { text, injected: false, charsUsed: 0, charsTruncated: 0 };
+  }
+
+  const headerMatch = recentStorySection.content.match(/^[^\n]+\n/);
+  const header = headerMatch ? headerMatch[0] : "";
+  const body = recentStorySection.content.slice(header.length);
+  const currentSentences = countSentences(body);
+
+  if (currentSentences <= minSentences) {
+    return { text, injected: false, charsUsed: 0, charsTruncated: 0 };
+  }
+
+  const targetRecentStoryChars = body.length - overage;
+  const truncatedText = truncateSectionFromStart(
+    text,
+    "Recent Story",
+    targetRecentStoryChars,
+    { minSentences }
+  );
+
+  const truncatedSections = parseContextSections(truncatedText);
+  const truncatedRecentStory = truncatedSections.find(s => s.name === "Recent Story");
+  const truncatedWorldLore = truncatedSections.find(s => s.name === "World Lore");
+
+  if (!truncatedWorldLore) {
+    return { text, injected: false, charsUsed: 0, charsTruncated: 0 };
+  }
+
+  const charsTruncated = truncatedRecentStory
+    ? recentStorySection.content.length - truncatedRecentStory.content.length
+    : 0;
+
+  if (truncatedText.length + contentLength > maxChars) {
+    return { text, injected: false, charsUsed: 0, charsTruncated: 0 };
+  }
+
+  const before = truncatedText.slice(0, truncatedWorldLore.endIndex);
+  const after = truncatedText.slice(truncatedWorldLore.endIndex);
+  const newText = before + contentWithSeparator + after;
+
+  return {
+    text: newText,
+    injected: true,
+    charsUsed: contentLength,
+    charsTruncated,
+  };
+}
+
+export function injectStoryCard(
+  text: string,
+  card: StoryCard,
+  options: InjectOptions
+): InjectResult {
+  if (!card.entry?.trim()) {
+    return { text, injected: false, charsUsed: 0, charsTruncated: 0 };
+  }
+
+  return injectWorldLore(text, card.entry, options);
+}

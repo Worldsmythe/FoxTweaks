@@ -1,6 +1,7 @@
-import type { Module, HookContext } from "../types";
+import type { Module, HookContext, VirtualContext } from "../types";
 import { booleanValidator } from "../utils/validation";
 import { findStoryCard, findStoryCardIndex } from "../utils/storyCardHelpers";
+import { serializeContext } from "../utils/virtualContext";
 
 export interface DebugConfig {
   enableDebugCards: boolean;
@@ -50,14 +51,14 @@ export const DebugStart: Module<DebugConfig> = (() => {
   }
 
   function onContext(
-    text: string,
+    ctx: VirtualContext,
     config: DebugConfig,
     context: HookContext
-  ): string {
+  ): VirtualContext {
     if (config.enableDebugCards) {
-      storeTempDebugData("context", text);
+      storeTempDebugData("context", serializeContext(ctx));
     }
-    return text;
+    return ctx;
   }
 
   function onOutput(
@@ -171,11 +172,12 @@ Changed: ${originalText !== finalText ? "Yes" : "No"}`;
   }
 
   function onContext(
-    text: string,
+    ctx: VirtualContext,
     config: DebugConfig,
     context: HookContext
-  ): string {
-    return processDebugHook(text, config, "context");
+  ): VirtualContext {
+    processDebugHook(serializeContext(ctx), config, "context");
+    return ctx;
   }
 
   function onOutput(

@@ -96,7 +96,9 @@ export function parseConfig<T extends Record<string, unknown>>(
           (module.name === "markdownHeaders" &&
             (sectionName.includes("markdown") || sectionName.includes("headers"))) ||
           (module.name === "narrativeChecklist" &&
-            (sectionName.includes("narrative") || sectionName.includes("checklist")))
+            (sectionName.includes("narrative") || sectionName.includes("checklist"))) ||
+          (module.name === "treeCards" &&
+            (sectionName.includes("tree") && sectionName.includes("cards")))
         ) {
           context.currentSection = module.name;
           context.currentModule = module;

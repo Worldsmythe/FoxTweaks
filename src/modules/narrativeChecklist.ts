@@ -1,11 +1,13 @@
-import type { Module, HookContext } from "../types";
+import type { Module, HookContext, VirtualContext } from "../types";
 import { booleanValidator, numberValidator } from "../utils/validation";
-import { findCard, createStoryCard } from "../utils/storyCardHelpers";
+import { findCard } from "../utils/storyCardHelpers";
 import {
-  injectSection,
-  truncateSection,
-  getSectionContent,
-} from "../utils/contextPipeline";
+  getSection,
+  setSection,
+  truncateSection as truncateSectionVC,
+  getContextLength,
+  serializeContext,
+} from "../utils/virtualContext";
 import { DEBUG } from "../debug" with { type: "macro" };
 
 declare function log(message: string): void;
@@ -309,19 +311,20 @@ ${checklistText}>>`;
     card.entry = formatChecklistItems(allItems);
   }
 
-  function onReformatContext(
-    text: string,
+  function onContext(
+    ctx: VirtualContext,
     config: NarrativeChecklistConfig,
     context: HookContext
-  ): string {
+  ): VirtualContext {
     if (!config.enable) {
-      return text;
+      return ctx;
     }
 
     const typedState = getTypedState(context.state);
+    const serialized = serializeContext(ctx);
 
     if (typedState.minBoundaryReached && typedState.minBoundaryActionText) {
-      const boundaryInContext = text.includes(typedState.minBoundaryActionText);
+      const boundaryInContext = serialized.includes(typedState.minBoundaryActionText);
       const actionsSinceBoundary = typedState.boundaryActionCount !== null
         ? context.info.actionCount - typedState.boundaryActionCount
         : 0;
@@ -341,36 +344,38 @@ ${checklistText}>>`;
     }
 
     if (!config.alwaysIncludeInContext) {
-      return text;
+      return ctx;
     }
 
-    const recentStorySection = getSectionContent(text, "Recent Story");
+    const recentStorySection = getSection(ctx, "Recent Story");
     if (!recentStorySection) {
-      return text;
+      return ctx;
     }
 
     const card = ensureChecklistCard();
     if (!card || !card.entry) {
-      return text;
+      return ctx;
     }
 
-    const checklistContent = `Narrative Checklist:\n${card.entry}`;
+    let result = setSection(ctx, "Narrative Checklist", card.entry);
 
-    text = injectSection(text, "Narrative Checklist", checklistContent, {
-      beforeSection: "Recent Story",
-    });
-
-    const maxChars = context.info.maxChars;
-    if (maxChars && text.length > maxChars) {
-      const overage = text.length - maxChars;
-      const targetRecentStoryLength = Math.max(
-        config.minContextChars,
-        recentStorySection.length - overage
-      );
-      text = truncateSection(text, "Recent Story", targetRecentStoryLength);
+    const maxChars = ctx.maxChars;
+    if (maxChars) {
+      const currentLength = getContextLength(result);
+      if (currentLength > maxChars) {
+        const overage = currentLength - maxChars;
+        const targetRecentStoryLength = Math.max(
+          config.minContextChars,
+          recentStorySection.body.length - overage
+        );
+        result = truncateSectionVC(result, "Recent Story", {
+          targetChars: targetRecentStoryLength,
+          fromStart: true,
+        });
+      }
     }
 
-    return text;
+    return result;
   }
 
   function migrateConfigSection(sectionText: string): string {
@@ -391,8 +396,8 @@ MinContextChars: 2000  # Minimum characters to preserve for recent story (keep h
     validateConfig,
     hooks: {
       onInput,
+      onContext,
       onOutput,
-      onReformatContext,
     },
     initialState: {
       checklistCardId: null,

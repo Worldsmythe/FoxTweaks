@@ -1,6 +1,7 @@
-import type { Module, HookContext } from "../types";
+import type { Module, HookContext, VirtualContext } from "../types";
 import { findCard } from "../utils/storyCardHelpers";
 import { booleanValidator, numberValidator } from "../utils/validation";
+import { prependToPostamble } from "../utils/virtualContext";
 
 export interface InterjectConfig {
   enable: boolean;
@@ -41,22 +42,22 @@ export const Interject: Module<InterjectConfig> = (() => {
   }
 
   function onContext(
-    text: string,
+    ctx: VirtualContext,
     config: InterjectConfig,
     context: HookContext
-  ): string {
+  ): VirtualContext {
     if (!config.enable) {
-      return text;
+      return ctx;
     }
 
     const card = findCard(CARD_TITLE);
     if (!card) {
-      return text;
+      return ctx;
     }
 
     const content = getContent(card);
     if (!content) {
-      return text;
+      return ctx;
     }
 
     const remainingTurns = (context.state.remainingTurns as number) || 0;
@@ -65,8 +66,7 @@ export const Interject: Module<InterjectConfig> = (() => {
       context.state.remainingTurns = config.maxTurns;
     }
 
-    text +=
-      "<SYSTEM MESSAGE> Please keep in mind: " + content + "</SYSTEM MESSAGE>";
+    const message = "<SYSTEM MESSAGE> Please keep in mind: " + content + "</SYSTEM MESSAGE>";
 
     context.state.remainingTurns = (context.state.remainingTurns as number) - 1;
 
@@ -76,7 +76,7 @@ export const Interject: Module<InterjectConfig> = (() => {
 
     context.updateConfig("RemainingTurns", context.state.remainingTurns);
 
-    return text;
+    return prependToPostamble(ctx, message);
   }
 
   return {

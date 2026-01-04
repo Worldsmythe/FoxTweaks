@@ -6,10 +6,7 @@ import { Interject, type InterjectConfig } from "./modules/interject";
 import { Paragraph, type ParagraphConfig } from "./modules/paragraph";
 import { Redundancy, type RedundancyConfig } from "./modules/redundancy";
 import { BetterYou, type BetterYouConfig } from "./modules/betteryou";
-import {
-  MarkdownHeaders,
-  type MarkdownHeadersConfig,
-} from "./modules/markdownHeaders";
+import { Context, type ContextConfig } from "./modules/context";
 import {
   NarrativeChecklist,
   type NarrativeChecklistConfig,
@@ -21,7 +18,7 @@ interface TestConfig {
   paragraph: ParagraphConfig;
   redundancy: RedundancyConfig;
   betterYou: BetterYouConfig;
-  markdownHeaders: MarkdownHeadersConfig;
+  context: ContextConfig;
   narrativeChecklist: NarrativeChecklistConfig;
   [key: string]: unknown;
 }
@@ -32,7 +29,7 @@ const modules = [
   Paragraph,
   Redundancy,
   BetterYou,
-  MarkdownHeaders,
+  Context,
   NarrativeChecklist,
 ] as Module<unknown>[];
 
@@ -77,13 +74,16 @@ describe("parseConfig - Full String Parsing", () => {
     });
   });
 
-  test("parses MarkdownHeaders default config string", () => {
+  test("parses Context default config string", () => {
     const config = parseConfig<TestConfig>(
-      MarkdownHeaders.configSection,
+      Context.configSection,
       modules
     );
-    expect(config.markdownHeaders.enable).toBe(true);
-    expect(config.markdownHeaders.headerLevel).toBe("##");
+    expect(config.context.enable).toBe(false);
+    expect(config.context.headerFormat).toBe("plain");
+    expect(config.context.markdownLevel).toBe("##");
+    expect(config.context.authorsNoteFormat).toBe("bracket");
+    expect(config.context.minRecentStoryPercent).toBe(30);
   });
 
   test("parses NarrativeChecklist default config string", () => {
@@ -107,7 +107,7 @@ describe("parseConfig - Full String Parsing", () => {
     expect(config.paragraph.enable).toBe(true);
     expect(config.redundancy.enable).toBe(true);
     expect(config.betterYou.enable).toBe(true);
-    expect(config.markdownHeaders.enable).toBe(true);
+    expect(config.context.enable).toBe(false);
     expect(config.narrativeChecklist.enable).toBe(true);
   });
 
@@ -277,9 +277,12 @@ MinContextChars: 2000  # Minimum characters to preserve for recent story`;
       '." you': '." You',
     });
 
-    // MarkdownHeaders
-    expect(config.markdownHeaders.enable).toBe(true);
-    expect(config.markdownHeaders.headerLevel).toBe("##");
+    // Context
+    expect(config.context.enable).toBe(false);
+    expect(config.context.headerFormat).toBe("plain");
+    expect(config.context.markdownLevel).toBe("##");
+    expect(config.context.authorsNoteFormat).toBe("bracket");
+    expect(config.context.minRecentStoryPercent).toBe(30);
 
     // NarrativeChecklist
     expect(config.narrativeChecklist.enable).toBe(true);

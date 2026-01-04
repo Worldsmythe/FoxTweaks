@@ -1,8 +1,10 @@
-import type { Module, AIPromptRequest } from "./types";
+import type { Module, AIPromptRequest, SerializeOptions } from "./types";
 import { parseConfig, parseConfigLine, rebuildConfigLine } from "./config";
 import { findCard } from "./utils/storyCardHelpers";
 import { getDefaultInterjectEntry } from "./modules/interject";
+import { migrateMarkdownHeadersToContext } from "./modules/context";
 import { DEBUG } from "./debug" with { type: "macro" };
+import { parseContext, serializeContext } from "./utils/virtualContext";
 
 const CARD_TITLE = "FoxTweaks Config";
 const CARD_KEYS = "Configure FoxTweaks behavior";
@@ -238,6 +240,15 @@ export class FoxTweaks {
     let description = card.description || "";
     let hasChanges = false;
 
+    const migratedDescription = migrateMarkdownHeadersToContext(description);
+    if (migratedDescription !== description) {
+      if (DEBUG()) {
+        log(`[FoxTweaks] runConfigMigrations - migrating MarkdownHeaders to Context`);
+      }
+      description = migratedDescription;
+      hasChanges = true;
+    }
+
     for (const module of this.modules) {
       if (!module.migrateConfigSection) {
         continue;
@@ -400,15 +411,33 @@ export class FoxTweaks {
     this.cachedConfig = null;
   }
 
+  private getSerializeOptions(config: Record<string, unknown>): SerializeOptions {
+    const contextConfig = config["context"] as Record<string, unknown> | undefined;
+
+    if (!contextConfig || !contextConfig.enable) {
+      return {
+        headerFormat: "plain",
+        markdownLevel: "##",
+        authorsNoteFormat: "bracket",
+      };
+    }
+
+    return {
+      headerFormat: (contextConfig.headerFormat as "plain" | "markdown") || "plain",
+      markdownLevel: (contextConfig.markdownLevel as string) || "##",
+      authorsNoteFormat: (contextConfig.authorsNoteFormat as "bracket" | "markdown") || "bracket",
+      minRecentStoryPercent: contextConfig.minRecentStoryPercent as number | undefined,
+    };
+  }
+
   /**
    * Creates hook functions that orchestrate all registered modules
-   * @returns Object containing onInput, onContext, onOutput, and reformatContext hooks
+   * @returns Object containing onInput, onContext, and onOutput hooks
    */
   createHooks(): {
     onInput: (text: string) => string;
     onContext: (text: string) => string;
     onOutput: (text: string) => string;
-    reformatContext: (text: string) => string;
   } {
     const createAIContext = (moduleName: string) => {
       const aiState = this.getAIState();
@@ -506,17 +535,18 @@ export class FoxTweaks {
       }
 
       const config = this.loadConfig();
-      let currentText = text;
-
       const globalHistory = history || [];
       const globalStoryCards = storyCards || [];
       const globalInfo = info || {};
+
+      const maxChars = (globalInfo as unknown as Record<string, unknown>).maxChars as number | undefined;
+      let virtualCtx = parseContext(text, globalStoryCards, maxChars);
 
       for (const module of this.modules) {
         if (module.hooks.onContext) {
           const moduleConfig = config[module.name];
           if (moduleConfig !== undefined) {
-            const context = {
+            const hookContext = {
               state: this.getModuleState(module.name),
               updateConfig: (key: string, value: unknown) => {
                 this.updateConfigValue(module.name, key, value);
@@ -526,22 +556,25 @@ export class FoxTweaks {
               info: globalInfo,
               ai: createAIContext(module.name),
             };
-            currentText = module.hooks.onContext(
-              currentText,
+            virtualCtx = module.hooks.onContext(
+              virtualCtx,
               moduleConfig,
-              context
+              hookContext
             );
           }
         }
       }
 
+      const serializeOptions = this.getSerializeOptions(config);
+      let result = serializeContext(virtualCtx, serializeOptions);
+
       const aiState = this.getAIState();
 
       if (aiState.activePrompt) {
-        currentText = currentText + aiState.activePrompt.prompt;
+        result = result + aiState.activePrompt.prompt;
       }
 
-      return currentText;
+      return result;
     };
 
     const onOutput = (text: string): string => {
@@ -620,44 +653,6 @@ export class FoxTweaks {
       return currentText;
     };
 
-    const reformatContext = (text: string): string => {
-      if (!text) {
-        return text;
-      }
-
-      const config = this.loadConfig();
-      let currentText = text;
-
-      const globalHistory = history || [];
-      const globalStoryCards = storyCards || [];
-      const globalInfo = info || {};
-
-      for (const module of this.modules) {
-        if (module.hooks.onReformatContext) {
-          const moduleConfig = config[module.name];
-          if (moduleConfig !== undefined) {
-            const context = {
-              state: this.getModuleState(module.name),
-              updateConfig: (key: string, value: unknown) => {
-                this.updateConfigValue(module.name, key, value);
-              },
-              history: globalHistory,
-              storyCards: globalStoryCards,
-              info: globalInfo,
-              ai: createAIContext(module.name),
-            };
-            currentText = module.hooks.onReformatContext(
-              currentText,
-              moduleConfig,
-              context
-            );
-          }
-        }
-      }
-
-      return currentText;
-    };
-
-    return { onInput, onContext, onOutput, reformatContext };
+    return { onInput, onContext, onOutput };
   }
 }

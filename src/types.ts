@@ -1,3 +1,7 @@
+import type { VirtualContext, SerializeOptions } from "./utils/virtualContext";
+
+export type { VirtualContext, SerializeOptions };
+
 export interface AIPromptRequest {
   id: string;
   moduleName: string;
@@ -62,14 +66,27 @@ export type HookFunction<TConfig> = (
 ) => string;
 
 /**
+ * Hook function that processes VirtualContext with typed configuration
+ * @template TConfig - The configuration type for this hook
+ * @param ctx - The virtual context to process
+ * @param config - Typed configuration for this hook
+ * @param context - Context with state, utilities, history, and cards
+ * @returns Modified virtual context
+ */
+export type ContextHookFunction<TConfig> = (
+  ctx: VirtualContext,
+  config: TConfig,
+  context: HookContext
+) => VirtualContext;
+
+/**
  * Collection of optional hook functions that a module can implement
  * @template TConfig - The configuration type for these hooks
  */
 export interface ModuleHooks<TConfig> {
   onInput?: HookFunction<TConfig>;
-  onContext?: HookFunction<TConfig>;
+  onContext?: ContextHookFunction<TConfig>;
   onOutput?: HookFunction<TConfig>;
-  onReformatContext?: HookFunction<TConfig>;
 }
 
 /**

@@ -1,10 +1,17 @@
-import type { Module, HookContext } from "../types";
+import type { Module, HookContext, VirtualContext } from "../types";
 import { booleanValidator, numberValidator } from "../utils/validation";
 import {
-  getSectionContent,
-  injectStoryCard,
-  removeSectionHeader,
-} from "../utils/contextPipeline";
+  getSection,
+  setSection,
+  addWorldLoreCard,
+  hasWorldLoreCard,
+  truncateSection,
+  getContextLength,
+  appendToSection,
+  appendToPreamble,
+  prependToPostamble,
+  type SectionName,
+} from "../utils/virtualContext";
 
 export interface TreeCardsConfig {
   enable: boolean;
@@ -15,6 +22,40 @@ export interface TreeCardsConfig {
 }
 
 const WIKILINK_PATTERN = /\[\[([^\]]+)\]\]/g;
+const INJECT_PATTERN = /<inject\s+section="([^"]+)"\s*\/?>/i;
+
+const VALID_INJECTION_TARGETS = new Set([
+  "preamble",
+  "World Lore",
+  "Story Summary",
+  "Memories",
+  "Narrative Checklist",
+  "Recent Story",
+  "Author's Note",
+  "postamble",
+]);
+
+type InjectionTarget = "preamble" | SectionName | "postamble";
+
+interface InjectionInfo {
+  target: InjectionTarget;
+  cleanedEntry: string;
+}
+
+export function parseInjectionMarker(entry: string): InjectionInfo | undefined {
+  const match = INJECT_PATTERN.exec(entry);
+  if (!match || !match[1]) return undefined;
+
+  const target = match[1].trim();
+  if (!VALID_INJECTION_TARGETS.has(target)) return undefined;
+
+  const cleanedEntry = entry.replace(INJECT_PATTERN, "").trim();
+  return { target: target as InjectionTarget, cleanedEntry };
+}
+
+export function stripWikilinks(text: string): string {
+  return text.replace(WIKILINK_PATTERN, "$1");
+}
 
 export function extractWikilinks(text: string): string[] {
   const links: string[] = [];
@@ -105,14 +146,25 @@ interface BFSNode {
   depth: number;
 }
 
-export function collectLinkedCards(
+interface CardNode {
+  card: StoryCard;
+  linksTo: Set<string>;
+}
+
+interface DiscoveryResult {
+  discovered: StoryCard[];
+  graph: Map<string, CardNode>;
+}
+
+function discoverLinkedCardsWithGraph(
   triggerCards: StoryCard[],
   allCards: StoryCard[],
   config: TreeCardsConfig
-): StoryCard[] {
+): DiscoveryResult {
   const visited = new Set<string>();
-  const result: StoryCard[] = [];
+  const discovered: StoryCard[] = [];
   const queue: BFSNode[] = [];
+  const graph = new Map<string, CardNode>();
 
   for (let i = 0; i < triggerCards.length; i++) {
     const card = triggerCards[i];
@@ -137,14 +189,18 @@ export function collectLinkedCards(
 
     const explicitLinks = extractWikilinks(card.entry);
     const linkedCards: StoryCard[] = [];
+    const linksTo = new Set<string>();
 
     for (let i = 0; i < explicitLinks.length; i++) {
       const linkTarget = explicitLinks[i];
       if (!linkTarget) continue;
 
       const linkedCard = findCardByReference(linkTarget, allCards);
-      if (linkedCard && !visited.has(linkedCard.id)) {
-        linkedCards.push(linkedCard);
+      if (linkedCard) {
+        linksTo.add(linkedCard.id);
+        if (!visited.has(linkedCard.id)) {
+          linkedCards.push(linkedCard);
+        }
       }
     }
 
@@ -152,13 +208,20 @@ export function collectLinkedCards(
       const implicitCards = extractImplicitLinks(card.entry, allCards);
       for (let i = 0; i < implicitCards.length; i++) {
         const implicitCard = implicitCards[i];
-        if (implicitCard && !visited.has(implicitCard.id)) {
-          const alreadyAdded = linkedCards.some(c => c.id === implicitCard.id);
-          if (!alreadyAdded) {
-            linkedCards.push(implicitCard);
+        if (implicitCard) {
+          linksTo.add(implicitCard.id);
+          if (!visited.has(implicitCard.id)) {
+            const alreadyAdded = linkedCards.some(c => c.id === implicitCard.id);
+            if (!alreadyAdded) {
+              linkedCards.push(implicitCard);
+            }
           }
         }
       }
+    }
+
+    if (!graph.has(card.id)) {
+      graph.set(card.id, { card, linksTo });
     }
 
     for (let i = 0; i < linkedCards.length; i++) {
@@ -166,12 +229,186 @@ export function collectLinkedCards(
       if (!linkedCard) continue;
 
       visited.add(linkedCard.id);
-      result.push(linkedCard);
+      discovered.push(linkedCard);
       queue.push({ card: linkedCard, depth: depth + 1 });
     }
   }
 
+  return { discovered, graph };
+}
+
+function topologicalSort(
+  cards: StoryCard[],
+  graph: Map<string, CardNode>
+): StoryCard[] {
+  if (cards.length === 0) return [];
+
+  const cardIds = new Set(cards.map(c => c.id));
+  const outDegree = new Map<string, number>();
+
+  for (const card of cards) {
+    outDegree.set(card.id, 0);
+  }
+
+  for (const [id, node] of graph) {
+    if (!cardIds.has(id)) continue;
+    for (const targetId of node.linksTo) {
+      if (cardIds.has(targetId)) {
+        outDegree.set(id, (outDegree.get(id) ?? 0) + 1);
+      }
+    }
+  }
+
+  const queue: string[] = [];
+  for (const [id, degree] of outDegree) {
+    if (degree === 0) queue.push(id);
+  }
+
+  const result: StoryCard[] = [];
+  const processed = new Set<string>();
+  const cardMap = new Map(cards.map(c => [c.id, c]));
+
+  while (queue.length > 0) {
+    const id = queue.shift();
+    if (!id || processed.has(id)) continue;
+
+    const card = cardMap.get(id);
+    if (!card) continue;
+
+    processed.add(id);
+    result.push(card);
+
+    for (const [otherId, otherNode] of graph) {
+      if (!cardIds.has(otherId) || processed.has(otherId)) continue;
+      if (otherNode.linksTo.has(id)) {
+        const newDegree = (outDegree.get(otherId) ?? 1) - 1;
+        outDegree.set(otherId, newDegree);
+        if (newDegree === 0) queue.push(otherId);
+      }
+    }
+  }
+
+  for (const card of cards) {
+    if (!processed.has(card.id)) {
+      result.push(card);
+    }
+  }
+
   return result;
+}
+
+export function collectLinkedCards(
+  triggerCards: StoryCard[],
+  allCards: StoryCard[],
+  config: TreeCardsConfig
+): StoryCard[] {
+  const { discovered, graph } = discoverLinkedCardsWithGraph(
+    triggerCards,
+    allCards,
+    config
+  );
+
+  if (discovered.length === 0) return [];
+
+  return topologicalSort(discovered, graph);
+}
+
+interface ProcessedCard {
+  card: StoryCard;
+  target: InjectionTarget;
+  entry: string;
+}
+
+function processCard(card: StoryCard): ProcessedCard {
+  if (!card.entry) {
+    return { card, target: "World Lore", entry: "" };
+  }
+
+  const injectionInfo = parseInjectionMarker(card.entry);
+  const baseEntry = injectionInfo?.cleanedEntry ?? card.entry;
+  const entry = stripWikilinks(baseEntry);
+  const target = injectionInfo?.target ?? "World Lore";
+
+  return { card, target, entry };
+}
+
+function addWorldLoreCardWithEntry(
+  ctx: VirtualContext,
+  card: StoryCard,
+  entry: string
+): VirtualContext {
+  if (!entry.trim()) return ctx;
+  if (hasWorldLoreCard(ctx, card.id)) return ctx;
+
+  const newCards = [...ctx.worldLoreCards, card];
+  const ctxWithCard: VirtualContext = {
+    preamble: ctx.preamble,
+    sections: ctx.sections,
+    postamble: ctx.postamble,
+    worldLoreCards: newCards,
+    raw: ctx.raw,
+    maxChars: ctx.maxChars,
+  };
+
+  return appendToSection(ctxWithCard, "World Lore", entry);
+}
+
+function injectToTarget(
+  ctx: VirtualContext,
+  processed: ProcessedCard
+): VirtualContext {
+  const { target, entry, card } = processed;
+  if (!entry.trim()) return ctx;
+
+  switch (target) {
+    case "preamble":
+      return appendToPreamble(ctx, entry);
+    case "postamble":
+      return prependToPostamble(ctx, entry);
+    case "World Lore":
+      return addWorldLoreCardWithEntry(ctx, card, entry);
+    default:
+      return appendToSection(ctx, target, entry);
+  }
+}
+
+function processTriggeredCardsForInjection(
+  ctx: VirtualContext,
+  triggeredCards: readonly StoryCard[]
+): VirtualContext {
+  let currentCtx = ctx;
+  const worldLoreSection = getSection(currentCtx, "World Lore");
+  if (!worldLoreSection) return currentCtx;
+
+  let worldLoreBody = worldLoreSection.body;
+
+  for (let i = 0; i < triggeredCards.length; i++) {
+    const card = triggeredCards[i];
+    if (!card?.entry) continue;
+
+    const injectionInfo = parseInjectionMarker(card.entry);
+    if (!injectionInfo || injectionInfo.target === "World Lore") continue;
+
+    const cleanedEntry = stripWikilinks(injectionInfo.cleanedEntry);
+    if (!cleanedEntry.trim()) continue;
+
+    if (worldLoreBody.includes(card.entry)) {
+      worldLoreBody = worldLoreBody.replace(card.entry, "").trim();
+      worldLoreBody = worldLoreBody.replace(/\n{3,}/g, "\n\n");
+    }
+
+    const processed: ProcessedCard = {
+      card,
+      target: injectionInfo.target,
+      entry: cleanedEntry,
+    };
+    currentCtx = setSection(currentCtx, "World Lore", worldLoreBody);
+    currentCtx = injectToTarget(currentCtx, processed);
+
+    worldLoreBody = getSection(currentCtx, "World Lore")?.body ?? worldLoreBody;
+  }
+
+  return currentCtx;
 }
 
 export const TreeCards: Module<TreeCardsConfig> = (() => {
@@ -201,68 +438,105 @@ export const TreeCards: Module<TreeCardsConfig> = (() => {
   }
 
   function onContext(
-    text: string,
+    ctx: VirtualContext,
     config: TreeCardsConfig,
     context: HookContext
-  ): string {
+  ): VirtualContext {
     if (!config.enable) {
-      return text;
+      return ctx;
     }
 
-    const maxChars = context.info.maxChars;
+    const maxChars = ctx.maxChars;
     if (!maxChars) {
-      return text;
+      return ctx;
     }
 
-    const worldLoreSection = getSectionContent(text, "World Lore");
+    const worldLoreSection = getSection(ctx, "World Lore");
     if (!worldLoreSection) {
-      return text;
+      return ctx;
     }
 
-    const worldLoreBody = removeSectionHeader(worldLoreSection);
-    const triggeredCards = findTriggeredCards(worldLoreBody, context.storyCards);
+    let currentCtx = ctx;
+
+    const triggeredCards = ctx.worldLoreCards;
+
+    currentCtx = processTriggeredCardsForInjection(currentCtx, triggeredCards);
+
+    const currentWorldLore = getSection(currentCtx, "World Lore");
+    if (currentWorldLore) {
+      const strippedWorldLore = stripWikilinks(currentWorldLore.body);
+      if (strippedWorldLore !== currentWorldLore.body) {
+        currentCtx = setSection(currentCtx, "World Lore", strippedWorldLore);
+      }
+    }
 
     if (triggeredCards.length === 0) {
-      return text;
+      return currentCtx;
     }
 
     const linkedCards = collectLinkedCards(
-      triggeredCards,
+      [...triggeredCards],
       context.storyCards,
       config
     );
 
     if (linkedCards.length === 0) {
-      return text;
+      return currentCtx;
     }
 
-    let currentText = text;
+    const processedCards = linkedCards.map(card => processCard(card));
+
+    const worldLoreCards = processedCards.filter(p => p.target === "World Lore");
+    const otherCards = processedCards.filter(p => p.target !== "World Lore");
+
+    for (let i = 0; i < otherCards.length; i++) {
+      const p = otherCards[i];
+      if (!p) continue;
+      currentCtx = injectToTarget(currentCtx, p);
+    }
+
     let budgetRemaining = Math.floor((maxChars * config.linkPercentage) / 100);
 
-    for (let i = 0; i < linkedCards.length; i++) {
-      const card = linkedCards[i];
-      if (!card?.entry) continue;
+    for (let i = 0; i < worldLoreCards.length; i++) {
+      const p = worldLoreCards[i];
+      if (!p?.entry) continue;
 
-      const cardLength = card.entry.length + 2;
+      if (hasWorldLoreCard(currentCtx, p.card.id)) {
+        continue;
+      }
+
+      const cardLength = p.entry.length + 2;
       if (cardLength > budgetRemaining) {
         break;
       }
 
-      const result = injectStoryCard(currentText, card, {
-        maxChars,
-        minSentences: config.minSentences,
-        budgetPercentage: 100,
-      });
+      const currentLength = getContextLength(currentCtx);
+      const spaceNeeded = currentLength + cardLength - maxChars;
 
-      if (!result.injected) {
-        break;
+      if (spaceNeeded > 0) {
+        const recentStory = getSection(currentCtx, "Recent Story");
+        if (!recentStory) {
+          break;
+        }
+
+        const targetChars = recentStory.body.length - spaceNeeded;
+        currentCtx = truncateSection(currentCtx, "Recent Story", {
+          targetChars,
+          minSentences: config.minSentences,
+          fromStart: true,
+        });
+
+        const newLength = getContextLength(currentCtx);
+        if (newLength + cardLength > maxChars) {
+          break;
+        }
       }
 
-      currentText = result.text;
-      budgetRemaining -= result.charsUsed;
+      currentCtx = injectToTarget(currentCtx, p);
+      budgetRemaining -= cardLength;
     }
 
-    return currentText;
+    return currentCtx;
   }
 
   return {

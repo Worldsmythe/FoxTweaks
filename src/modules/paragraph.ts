@@ -1,6 +1,7 @@
-import type { Module, HookContext } from "../types";
+import type { Module, HookContext, VirtualContext } from "../types";
 import { isActionType } from "../utils/historyHelpers";
 import { booleanValidator, enumValidator } from "../utils/validation";
+import { getSection, setSection } from "../utils/virtualContext";
 
 type FormattingType = "none" | "basic" | "empty-line" | "newline";
 
@@ -65,8 +66,14 @@ export const Paragraph: Module<ParagraphConfig> = (() => {
     }
   }
 
-  function onContext(text: string, config: ParagraphConfig, context: HookContext): string {
-    return text.replace(/^    /gm, "");
+  function onContext(ctx: VirtualContext, config: ParagraphConfig, context: HookContext): VirtualContext {
+    const recentStory = getSection(ctx, "Recent Story");
+    if (!recentStory) {
+      return ctx;
+    }
+
+    const strippedBody = recentStory.body.replace(/^    /gm, "");
+    return setSection(ctx, "Recent Story", strippedBody);
   }
 
   function onOutput(text: string, config: ParagraphConfig, context: HookContext): string {

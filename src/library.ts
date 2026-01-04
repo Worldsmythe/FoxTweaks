@@ -8,14 +8,13 @@
  * - Redundancy detection and merging
  * - Pronoun replacement (Better You)
  * - Narrative checklist with AI-powered completion detection
- * - Markdown header formatting
+ * - Configurable context formatting
  * - Context manipulation utilities
  *
  * Usage:
  *   Input modifier:   text = FoxTweaks.Hooks.onInput(text);
  *   Context modifier: text = FoxTweaks.Hooks.onContext(text);
  *   Output modifier:  text = FoxTweaks.Hooks.onOutput(text);
- *   Context reformat: text = FoxTweaks.Hooks.reformatContext(text);
  */
 
 import { FoxTweaks as FoxTweaksCore } from "./core";
@@ -25,7 +24,7 @@ import { Interject } from "./modules/interject";
 import { Paragraph } from "./modules/paragraph";
 import { Redundancy } from "./modules/redundancy";
 import { BetterYou } from "./modules/betteryou";
-import { MarkdownHeaders } from "./modules/markdownHeaders";
+import { Context } from "./modules/context";
 import { NarrativeChecklist } from "./modules/narrativeChecklist";
 import { TreeCards } from "./modules/treeCards";
 import { DebugStart, DebugEnd } from "./modules/debug";
@@ -44,7 +43,7 @@ core.registerModule(Paragraph);
 core.registerModule(Redundancy);
 core.registerModule(BetterYou);
 core.registerModule(NarrativeChecklist);
-core.registerModule(MarkdownHeaders);
+core.registerModule(Context);
 core.registerModule(DebugEnd);
 
 const hooks = core.createHooks();
@@ -54,7 +53,6 @@ export const FoxTweaks = {
     onInput: hooks.onInput,
     onContext: hooks.onContext,
     onOutput: hooks.onOutput,
-    reformatContext: hooks.reformatContext,
   },
   Utils: {
     pinAndSortCards,

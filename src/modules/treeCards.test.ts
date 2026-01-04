@@ -5,6 +5,8 @@ import {
   extractImplicitLinks,
   findTriggeredCards,
   collectLinkedCards,
+  parseInjectionMarker,
+  stripWikilinks,
   type TreeCardsConfig,
 } from "./treeCards";
 
@@ -124,19 +126,19 @@ describe("extractImplicitLinks", () => {
   it("should find cards whose keys appear in entry", () => {
     const entry = "The foxkin village was protected by magic.";
     const linked = extractImplicitLinks(entry, cards);
-    expect(linked.map(c => c.id)).toEqual(["1", "2"]);
+    expect(linked.map((c) => c.id)).toEqual(["1", "2"]);
   });
 
   it("should be case insensitive", () => {
     const entry = "The FOXKIN used MAGIC.";
     const linked = extractImplicitLinks(entry, cards);
-    expect(linked.map(c => c.id)).toEqual(["1", "2"]);
+    expect(linked.map((c) => c.id)).toEqual(["1", "2"]);
   });
 
   it("should match partial key occurrences (substring)", () => {
     const entry = "She carried a longsword.";
     const linked = extractImplicitLinks(entry, cards);
-    expect(linked.map(c => c.id)).toEqual(["3"]);
+    expect(linked.map((c) => c.id)).toEqual(["3"]);
   });
 
   it("should return empty array for no matches", () => {
@@ -163,7 +165,7 @@ describe("findTriggeredCards", () => {
   it("should find cards whose entries appear in world lore", () => {
     const worldLore = "Some intro.\n\nEntry for card 1.\n\nEntry for card 3.";
     const triggered = findTriggeredCards(worldLore, cards);
-    expect(triggered.map(c => c.id)).toEqual(["1", "3"]);
+    expect(triggered.map((c) => c.id)).toEqual(["1", "3"]);
   });
 
   it("should return empty array when no cards match", () => {
@@ -201,10 +203,102 @@ describe("collectLinkedCards", () => {
     const allCards = [cardA, cardB];
 
     const linked = collectLinkedCards([cardA], allCards, defaultConfig);
-    expect(linked.map(c => c.id)).toEqual(["b"]);
+    expect(linked.map((c) => c.id)).toEqual(["b"]);
   });
 
-  it("should follow links breadth-first", () => {
+  it("should order dependencies before dependents (simple case)", () => {
+    const fox = createCard("fox", {
+      title: "Fox",
+      entry: "A [[Beastkin]] creature.",
+    });
+    const beastkin = createCard("beastkin", {
+      title: "Beastkin",
+      entry: "A beast race.",
+    });
+    const allCards = [fox, beastkin];
+
+    const linked = collectLinkedCards([fox], allCards, defaultConfig);
+    expect(linked[0]?.id).toBe("beastkin");
+  });
+
+  it("should order shared dependencies first (diamond pattern)", () => {
+    const a = createCard("a", {
+      title: "A",
+      entry: "Links to [[B]] and [[C]].",
+    });
+    const b = createCard("b", {
+      title: "B",
+      entry: "Links to [[D]].",
+    });
+    const c = createCard("c", {
+      title: "C",
+      entry: "Links to [[D]].",
+    });
+    const d = createCard("d", {
+      title: "D",
+      entry: "Base dependency.",
+    });
+    const allCards = [a, b, c, d];
+
+    const linked = collectLinkedCards([a], allCards, defaultConfig);
+    const dIndex = linked.findIndex((card) => card.id === "d");
+    const bIndex = linked.findIndex((card) => card.id === "b");
+    const cIndex = linked.findIndex((card) => card.id === "c");
+
+    expect(dIndex).toBeLessThan(bIndex);
+    expect(dIndex).toBeLessThan(cIndex);
+  });
+
+  it("should handle chain dependencies", () => {
+    const a = createCard("a", {
+      title: "A",
+      entry: "Links to [[B]].",
+    });
+    const b = createCard("b", {
+      title: "B",
+      entry: "Links to [[C]].",
+    });
+    const c = createCard("c", {
+      title: "C",
+      entry: "Links to [[D]].",
+    });
+    const d = createCard("d", {
+      title: "D",
+      entry: "End of chain.",
+    });
+    const allCards = [a, b, c, d];
+
+    const linked = collectLinkedCards([a], allCards, defaultConfig);
+    expect(linked.map((card) => card.id)).toEqual(["d", "c", "b"]);
+  });
+
+  it("should handle multiple trigger cards with shared dependencies", () => {
+    const fox = createCard("fox", {
+      title: "Fox",
+      entry: "A [[Beastkin]] with [[Magic]].",
+    });
+    const wolf = createCard("wolf", {
+      title: "Wolf",
+      entry: "Another [[Beastkin]].",
+    });
+    const beastkin = createCard("beastkin", {
+      title: "Beastkin",
+      entry: "A beast race.",
+    });
+    const magic = createCard("magic", {
+      title: "Magic",
+      entry: "Mystical power.",
+    });
+    const allCards = [fox, wolf, beastkin, magic];
+
+    const linked = collectLinkedCards([fox, wolf], allCards, defaultConfig);
+
+    const beastkinIndex = linked.findIndex((card) => card.id === "beastkin");
+    expect(beastkinIndex).toBeGreaterThanOrEqual(0);
+    expect(linked.some((card) => card.id === "magic")).toBe(true);
+  });
+
+  it("should follow links and discover cards", () => {
     const cardA = createCard("a", {
       title: "Card A",
       entry: "Links to [[Card B]] and [[Card C]].",
@@ -224,7 +318,14 @@ describe("collectLinkedCards", () => {
     const allCards = [cardA, cardB, cardC, cardD];
 
     const linked = collectLinkedCards([cardA], allCards, defaultConfig);
-    expect(linked.map(c => c.id)).toEqual(["b", "c", "d"]);
+    expect(linked.length).toBe(3);
+    expect(linked.some((c) => c.id === "b")).toBe(true);
+    expect(linked.some((c) => c.id === "c")).toBe(true);
+    expect(linked.some((c) => c.id === "d")).toBe(true);
+
+    const dIndex = linked.findIndex((c) => c.id === "d");
+    const bIndex = linked.findIndex((c) => c.id === "b");
+    expect(dIndex).toBeLessThan(bIndex);
   });
 
   it("should respect maxDepth limit", () => {
@@ -248,7 +349,14 @@ describe("collectLinkedCards", () => {
 
     const configDepth2 = { ...defaultConfig, maxDepth: 2 };
     const linked = collectLinkedCards([cardA], allCards, configDepth2);
-    expect(linked.map(c => c.id)).toEqual(["b", "c"]);
+    expect(linked.length).toBe(2);
+    expect(linked.some((c) => c.id === "b")).toBe(true);
+    expect(linked.some((c) => c.id === "c")).toBe(true);
+    expect(linked.some((c) => c.id === "d")).toBe(false);
+
+    const cIndex = linked.findIndex((c) => c.id === "c");
+    const bIndex = linked.findIndex((c) => c.id === "b");
+    expect(cIndex).toBeLessThan(bIndex);
   });
 
   it("should prevent cycles", () => {
@@ -263,7 +371,7 @@ describe("collectLinkedCards", () => {
     const allCards = [cardA, cardB];
 
     const linked = collectLinkedCards([cardA], allCards, defaultConfig);
-    expect(linked.map(c => c.id)).toEqual(["b"]);
+    expect(linked.map((c) => c.id)).toEqual(["b"]);
   });
 
   it("should not include trigger cards in result", () => {
@@ -278,7 +386,7 @@ describe("collectLinkedCards", () => {
     const allCards = [cardA, cardB];
 
     const linked = collectLinkedCards([cardA], allCards, defaultConfig);
-    expect(linked.some(c => c.id === "a")).toBe(false);
+    expect(linked.some((c) => c.id === "a")).toBe(false);
   });
 
   it("should include implicit links when enabled", () => {
@@ -295,7 +403,7 @@ describe("collectLinkedCards", () => {
 
     const configWithImplicit = { ...defaultConfig, implicitLinks: true };
     const linked = collectLinkedCards([cardA], allCards, configWithImplicit);
-    expect(linked.map(c => c.id)).toEqual(["b"]);
+    expect(linked.map((c) => c.id)).toEqual(["b"]);
   });
 
   it("should not include implicit links when disabled", () => {
@@ -363,13 +471,116 @@ describe("collectLinkedCards", () => {
     const allCards = [cardA, cardB, cardC, cardD];
 
     const linked = collectLinkedCards([cardA, cardB], allCards, defaultConfig);
-    expect(linked.map(c => c.id)).toEqual(["c", "d"]);
+    expect(linked.map((c) => c.id)).toEqual(["c", "d"]);
+  });
+});
+
+describe("stripWikilinks", () => {
+  it("should remove brackets but keep text", () => {
+    expect(stripWikilinks("The [[Beastkin]] are a race.")).toBe(
+      "The Beastkin are a race."
+    );
+  });
+
+  it("should handle multiple wikilinks", () => {
+    expect(stripWikilinks("[[A]] and [[B]] met [[C]].")).toBe("A and B met C.");
+  });
+
+  it("should handle wikilinks with spaces", () => {
+    expect(stripWikilinks("The [[Character Name]] appeared.")).toBe(
+      "The Character Name appeared."
+    );
+  });
+
+  it("should return text unchanged if no wikilinks", () => {
+    expect(stripWikilinks("No links here.")).toBe("No links here.");
+  });
+
+  it("should handle empty text", () => {
+    expect(stripWikilinks("")).toBe("");
+  });
+
+  it("should handle adjacent wikilinks", () => {
+    expect(stripWikilinks("[[A]][[B]]")).toBe("AB");
+  });
+});
+
+describe("parseInjectionMarker", () => {
+  it("should parse valid inject marker with self-closing tag", () => {
+    const result = parseInjectionMarker(
+      '<inject section="preamble" />Content here.'
+    );
+    expect(result?.target).toBe("preamble");
+    expect(result?.cleanedEntry).toBe("Content here.");
+  });
+
+  it("should parse inject marker without trailing slash", () => {
+    const result = parseInjectionMarker(
+      '<inject section="Memories">Content here.'
+    );
+    expect(result?.target).toBe("Memories");
+    expect(result?.cleanedEntry).toBe("Content here.");
+  });
+
+  it("should handle all valid section targets", () => {
+    const targets = [
+      "preamble",
+      "World Lore",
+      "Story Summary",
+      "Memories",
+      "Narrative Checklist",
+      "Recent Story",
+      "Author's Note",
+      "postamble",
+    ] as const;
+
+    for (const target of targets) {
+      const result = parseInjectionMarker(`<inject section="${target}" />Text`);
+      expect(result?.target).toBe(target);
+    }
+  });
+
+  it("should return undefined for invalid section", () => {
+    expect(
+      parseInjectionMarker('<inject section="InvalidSection" />')
+    ).toBeUndefined();
+  });
+
+  it("should return undefined for no marker", () => {
+    expect(parseInjectionMarker("No marker here.")).toBeUndefined();
+  });
+
+  it("should return undefined for malformed marker", () => {
+    expect(parseInjectionMarker("<inject section=>")).toBeUndefined();
+    expect(parseInjectionMarker('<inject section="">Text')).toBeUndefined();
+  });
+
+  it("should be case insensitive for tag name", () => {
+    const result = parseInjectionMarker('<INJECT section="preamble" />Content');
+    expect(result?.target).toBe("preamble");
+  });
+
+  it("should handle marker in middle of text", () => {
+    const result = parseInjectionMarker(
+      'Before <inject section="Memories" /> after.'
+    );
+    expect(result?.target).toBe("Memories");
+    expect(result?.cleanedEntry).toBe("Before  after.");
+  });
+
+  it("should trim cleaned entry", () => {
+    const result = parseInjectionMarker(
+      '<inject section="preamble" />   Spaced content   '
+    );
+    expect(result?.cleanedEntry).toBe("Spaced content");
   });
 });
 
 describe("TreeCards Config Parsing", () => {
   const { TreeCards } = require("./treeCards") as {
-    TreeCards: { validateConfig: (raw: Record<string, unknown>) => TreeCardsConfig };
+    TreeCards: {
+      validateConfig: (raw: Record<string, unknown>) => TreeCardsConfig;
+    };
   };
 
   it("should parse all config values", () => {

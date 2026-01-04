@@ -245,7 +245,7 @@ MinContextChars: 2000`);
       expect(configCard?.description).toContain("RemainingTurns: 0");
 
       const contextWithBoundary = `Recent Story:\nYou begin your quest in the ancient forest.\nYou walk deeper into the woods.\nA mysterious figure appears before you.\nYou meet the figure.`;
-      hooks.reformatContext(contextWithBoundary);
+      hooks.onContext(contextWithBoundary);
 
       info.actionCount = 5;
       hooks.onOutput("The figure speaks to you.");
@@ -256,7 +256,7 @@ MinContextChars: 2000`);
 
       info.actionCount = 6;
       const contextWithoutBoundary = `Recent Story:\nYou meet the figure.\nThe figure speaks to you.\nYou listen carefully.`;
-      hooks.reformatContext(contextWithoutBoundary);
+      hooks.onContext(contextWithoutBoundary);
 
       info.actionCount = 7;
       hooks.onOutput("You listen carefully.");
@@ -305,7 +305,7 @@ MinContextChars: 2000`);
       expect(configCard?.description).toContain("RemainingTurns: 0");
 
       const contextWithBoundary = `Recent Story:\nYou enter the dungeon.\nYou explore the first room.\nYou find a door.`;
-      hooks.reformatContext(contextWithBoundary);
+      hooks.onContext(contextWithBoundary);
 
       info.actionCount = 4;
       hooks.onOutput("You examine the door.");
@@ -353,7 +353,7 @@ MinContextChars: 2000`);
       expect(configCard?.description).toContain("RemainingTurns: 0");
 
       info.actionCount = 101;
-      hooks.reformatContext("Recent Story:\nSome text without boundary.");
+      hooks.onContext("Recent Story:\nSome text without boundary.");
 
       hooks.onOutput("Output after 1 action - not enough progress yet.");
 
@@ -361,7 +361,7 @@ MinContextChars: 2000`);
       expect(configCard?.description).toContain("RemainingTurns: -1");
 
       info.actionCount = 102;
-      hooks.reformatContext("Recent Story:\nSome text without boundary.");
+      hooks.onContext("Recent Story:\nSome text without boundary.");
 
       hooks.onOutput("Output after 2 actions - triggers because MIN is effectively 2.");
 

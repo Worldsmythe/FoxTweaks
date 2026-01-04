@@ -291,4 +291,24 @@ MinContextChars: 2000  # Minimum characters to preserve for recent story`;
     expect(config.narrativeChecklist.alwaysIncludeInContext).toBe(true);
     expect(config.narrativeChecklist.minContextChars).toBe(2000);
   });
+
+  test("preserves case for dice outcomeLabels keys", () => {
+    const configString = `--- Dice ---
+Enable: true
+Triggers: try
+Default: S s p f F
+OutcomeLabels:
+  S: Critical Success!
+  s: Success
+  p: Partial Success
+  f: Failure
+  F: Critical Failure!`;
+
+    const config = parseConfig<TestConfig>(configString, modules);
+    expect(config.dice.outcomeLabels.S).toBe("Critical Success!");
+    expect(config.dice.outcomeLabels.s).toBe("Success");
+    expect(config.dice.outcomeLabels.p).toBe("Partial Success");
+    expect(config.dice.outcomeLabels.f).toBe("Failure");
+    expect(config.dice.outcomeLabels.F).toBe("Critical Failure!");
+  });
 });

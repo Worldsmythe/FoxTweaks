@@ -141,7 +141,8 @@ export function parseConfig<T extends Record<string, unknown>>(
       }
     } else {
       if (currentNestedObject && currentNestedKey) {
-        const preserveCase = context.currentSection === "betterYou";
+        const preserveCase = context.currentSection === "betterYou" ||
+          (context.currentSection === "dice" && currentNestedKey === "outcomelabels");
         const nestedKey = preserveCase ? parsed.key : lowerKey;
         currentNestedObject[nestedKey] = parsed.value;
       }

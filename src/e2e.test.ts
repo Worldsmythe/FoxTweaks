@@ -2,6 +2,7 @@ import { describe, expect } from "bun:test";
 import { FoxTweaks as FoxTweaksCore } from "./core";
 import { DiceRoll } from "./modules/diceroll";
 import { Interject } from "./modules/interject";
+import { WordBoundaryTriggers } from "./modules/wordBoundaryTriggers";
 import { TreeCards } from "./modules/treeCards";
 import { SectionInjection } from "./modules/sectionInjection";
 import { Paragraph } from "./modules/paragraph";
@@ -22,6 +23,7 @@ function createFoxTweaks() {
   core.registerModule(DebugStart);
   core.registerModule(DiceRoll);
   core.registerModule(Interject);
+  core.registerModule(WordBoundaryTriggers);
   core.registerModule(TreeCards);
   core.registerModule(SectionInjection);
   core.registerModule(Paragraph);

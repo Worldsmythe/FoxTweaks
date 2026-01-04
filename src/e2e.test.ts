@@ -2,12 +2,13 @@ import { describe, expect } from "bun:test";
 import { FoxTweaks as FoxTweaksCore } from "./core";
 import { DiceRoll } from "./modules/diceroll";
 import { Interject } from "./modules/interject";
+import { TreeCards } from "./modules/treeCards";
+import { SectionInjection } from "./modules/sectionInjection";
 import { Paragraph } from "./modules/paragraph";
 import { Redundancy } from "./modules/redundancy";
 import { BetterYou } from "./modules/betteryou";
 import { Context } from "./modules/context";
 import { NarrativeChecklist } from "./modules/narrativeChecklist";
-import { TreeCards } from "./modules/treeCards";
 import { DebugStart, DebugEnd } from "./modules/debug";
 import {
   testWithAiDungeonEnvironment,
@@ -22,6 +23,7 @@ function createFoxTweaks() {
   core.registerModule(DiceRoll);
   core.registerModule(Interject);
   core.registerModule(TreeCards);
+  core.registerModule(SectionInjection);
   core.registerModule(Paragraph);
   core.registerModule(Redundancy);
   core.registerModule(BetterYou);
@@ -78,7 +80,7 @@ function setupIntegrationCards(): void {
 
   const fox = globalThis.addStoryCard(
     "fox",
-    '### Foxes\n\nFoxes or sometimes \'foxkin\' are a type of [[beastkin]] that look like attractive humans standing 4\'6" to 6\'0".  Long-legged, generally athletic folk. Pointed, fox-like ears. "Wild" hair colors like red, white, or silver. Sharp and cunning eyes, and natural grace.\n\n------',
+    "### Foxes\n\nFoxes or sometimes 'foxkin' are a type of [[beastkin]] that look like attractive humans standing 4'6\" to 6'0\".  Long-legged, generally athletic folk. Pointed, fox-like ears. \"Wild\" hair colors like red, white, or silver. Sharp and cunning eyes, and natural grace.\n\n------",
     "race",
     "Foxes",
     "",
@@ -90,7 +92,7 @@ function setupIntegrationCards(): void {
 
   const wolf = globalThis.addStoryCard(
     "wolf",
-    '### Wolves\n\nWolves or sometimes \'wolfkin\' are a type of [[beastkin]] that look like attractive humans standing 4\'6" to 6\'0".  Long-legged, generally athletic folk. Pointed, wolf-like ears. "Wild" hair colors like red, white, or silver. Sharp and cunning eyes, and natural grace.\n\n------',
+    "### Wolves\n\nWolves or sometimes 'wolfkin' are a type of [[beastkin]] that look like attractive humans standing 4'6\" to 6'0\".  Long-legged, generally athletic folk. Pointed, wolf-like ears. \"Wild\" hair colors like red, white, or silver. Sharp and cunning eyes, and natural grace.\n\n------",
     "race",
     "Wolves",
     "",
@@ -166,12 +168,18 @@ Enable: false
 --- Interject ---
 Enable: false
 
+--- Word Boundary Triggers ---
+Enable: false
+
 --- Tree Cards ---
 Enable: true
 LinkPercentage: 30
 ImplicitLinks: false
 MaxDepth: 3
 MinSentences: 5
+
+--- Section Injection ---
+Enable: true
 
 --- Paragraph ---
 Enable: false
@@ -305,7 +313,10 @@ EnableDebugCards: false
 --- Tree Cards ---
 Enable: true
 LinkPercentage: 50
-MaxDepth: 3`);
+MaxDepth: 3
+
+--- Section Injection ---
+Enable: true`);
 
       globalThis.info = {
         actionCount: 1,
@@ -319,7 +330,9 @@ MaxDepth: 3`);
       expect(result).toContain("This content goes to preamble.");
 
       const preambleEnd = result.indexOf("World Lore:");
-      const preambleInjection = result.indexOf("This content goes to preamble.");
+      const preambleInjection = result.indexOf(
+        "This content goes to preamble."
+      );
       expect(preambleInjection).toBeLessThan(preambleEnd);
 
       expect(result).toContain("This content goes to memories.");
@@ -404,7 +417,9 @@ You continue forward.`;
       const result = hooks.onContext(simpleContext);
 
       expect(result).toContain("<SYSTEM MESSAGE>");
-      expect(result).toContain("Focus on describing the environment in detail.");
+      expect(result).toContain(
+        "Focus on describing the environment in detail."
+      );
       expect(result).toContain("</SYSTEM MESSAGE>");
 
       const systemMessageIndex = result.indexOf("<SYSTEM MESSAGE>");
@@ -426,9 +441,15 @@ Enable: true
 MaxTurns: 3
 RemainingTurns: 0
 
+--- Word Boundary Triggers ---
+Enable: false
+
 --- Tree Cards ---
 Enable: true
 LinkPercentage: 30
+
+--- Section Injection ---
+Enable: true
 
 --- Context ---
 Enable: true
@@ -663,6 +684,152 @@ The story.
       hooks.onContext(simpleContext);
 
       expect(configCard.description).toContain("RemainingTurns: 2");
+    }
+  );
+
+  testWithAiDungeonEnvironment(
+    "should trigger cards using word-boundary matching when enabled",
+    () => {
+      const foxCard = globalThis.addStoryCard(
+        "fox-card",
+        "Fox description here.",
+        "race",
+        "Fox Card",
+        "",
+        { returnCard: true }
+      );
+      if (foxCard && typeof foxCard !== "number") {
+        foxCard.keys = ["fox"];
+      }
+
+      const foxesCard = globalThis.addStoryCard(
+        "foxes-card",
+        "Foxes description - should NOT match.",
+        "lore",
+        "Foxes Card",
+        "",
+        { returnCard: true }
+      );
+      if (foxesCard && typeof foxesCard !== "number") {
+        foxesCard.keys = ["foxes"];
+      }
+
+      createConfigCard(`--- Word Boundary Triggers ---
+Enable: true
+
+--- Tree Cards ---
+Enable: false
+
+--- Section Injection ---
+Enable: false`);
+
+      globalThis.info = {
+        actionCount: 1,
+        characterNames: [],
+        maxChars: 10000,
+      };
+
+      const contextWithFox = `### Preamble
+
+World Lore:
+Foxes description - should NOT match.
+
+Some extra native card content that takes up more space here.
+
+Recent Story:
+The fox jumped over the lazy dog. It was a quick fox.
+
+[Author's note: Be creative.]`;
+
+      const hooks = createFoxTweaks();
+      const result = hooks.onContext(contextWithFox);
+
+      expect(result).toContain("Fox description here.");
+      expect(result).not.toContain("Foxes description");
+    }
+  );
+
+  testWithAiDungeonEnvironment(
+    "should process word-boundary triggers then tree cards then section injection",
+    () => {
+      const wolfCard = globalThis.addStoryCard(
+        "wolf-card",
+        "Wolf is a [[beastkin]] creature.",
+        "race",
+        "Wolf Card",
+        "",
+        { returnCard: true }
+      );
+      if (wolfCard && typeof wolfCard !== "number") {
+        wolfCard.keys = ["wolf"];
+      }
+
+      const beastkinCard = globalThis.addStoryCard(
+        "beastkin-card",
+        "Beastkin are humanoids with animal features.",
+        "race",
+        "Beastkin Card",
+        "",
+        { returnCard: true }
+      );
+      if (beastkinCard && typeof beastkinCard !== "number") {
+        beastkinCard.keys = ["beastkin"];
+      }
+
+      const injectionCard = globalThis.addStoryCard(
+        "injection-card",
+        '<inject section="preamble" />\nSpecial wolf hunting rules.',
+        "lore",
+        "Injection Card",
+        "",
+        { returnCard: true }
+      );
+      if (injectionCard && typeof injectionCard !== "number") {
+        injectionCard.keys = ["wolf-rules"];
+      }
+
+      createConfigCard(`--- Word Boundary Triggers ---
+Enable: true
+
+--- Tree Cards ---
+Enable: true
+LinkPercentage: 50
+
+--- Section Injection ---
+Enable: true`);
+
+      globalThis.info = {
+        actionCount: 1,
+        characterNames: [],
+        maxChars: 10000,
+      };
+
+      const contextWithWolf = `### Preamble
+
+World Lore:
+<inject section="preamble" />
+Special wolf hunting rules.
+
+Wolf is a [[beastkin]] creature.
+
+Recent Story:
+A wolf appeared in the forest. It looked dangerous.
+
+[Author's note: Be creative.]`;
+
+      const hooks = createFoxTweaks();
+      const result = hooks.onContext(contextWithWolf);
+
+      expect(result).toContain("Wolf is a beastkin creature.");
+
+      expect(result).toContain("Beastkin are humanoids");
+
+      const preambleEnd = result.indexOf("World Lore:");
+      const injectionContent = result.indexOf("Special wolf hunting rules");
+      expect(injectionContent).toBeLessThan(preambleEnd);
+
+      expect(result).not.toContain("[[beastkin]]");
+      expect(result).not.toContain("<inject");
     }
   );
 });

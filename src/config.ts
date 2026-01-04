@@ -98,7 +98,11 @@ export function parseConfig<T extends Record<string, unknown>>(
           (module.name === "narrativeChecklist" &&
             (sectionName.includes("narrative") || sectionName.includes("checklist"))) ||
           (module.name === "treeCards" &&
-            (sectionName.includes("tree") && sectionName.includes("cards")))
+            (sectionName.includes("tree") && sectionName.includes("cards"))) ||
+          (module.name === "wordBoundaryTriggers" &&
+            (sectionName.includes("word") && sectionName.includes("boundary"))) ||
+          (module.name === "sectionInjection" &&
+            (sectionName.includes("section") && sectionName.includes("injection")))
         ) {
           context.currentSection = module.name;
           context.currentModule = module;

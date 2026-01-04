@@ -5,7 +5,6 @@ import {
   extractImplicitLinks,
   findTriggeredCards,
   collectLinkedCards,
-  parseInjectionMarker,
   stripWikilinks,
   type TreeCardsConfig,
 } from "./treeCards";
@@ -502,77 +501,6 @@ describe("stripWikilinks", () => {
 
   it("should handle adjacent wikilinks", () => {
     expect(stripWikilinks("[[A]][[B]]")).toBe("AB");
-  });
-});
-
-describe("parseInjectionMarker", () => {
-  it("should parse valid inject marker with self-closing tag", () => {
-    const result = parseInjectionMarker(
-      '<inject section="preamble" />Content here.'
-    );
-    expect(result?.target).toBe("preamble");
-    expect(result?.cleanedEntry).toBe("Content here.");
-  });
-
-  it("should parse inject marker without trailing slash", () => {
-    const result = parseInjectionMarker(
-      '<inject section="Memories">Content here.'
-    );
-    expect(result?.target).toBe("Memories");
-    expect(result?.cleanedEntry).toBe("Content here.");
-  });
-
-  it("should handle all valid section targets", () => {
-    const targets = [
-      "preamble",
-      "World Lore",
-      "Story Summary",
-      "Memories",
-      "Narrative Checklist",
-      "Recent Story",
-      "Author's Note",
-      "postamble",
-    ] as const;
-
-    for (const target of targets) {
-      const result = parseInjectionMarker(`<inject section="${target}" />Text`);
-      expect(result?.target).toBe(target);
-    }
-  });
-
-  it("should return undefined for invalid section", () => {
-    expect(
-      parseInjectionMarker('<inject section="InvalidSection" />')
-    ).toBeUndefined();
-  });
-
-  it("should return undefined for no marker", () => {
-    expect(parseInjectionMarker("No marker here.")).toBeUndefined();
-  });
-
-  it("should return undefined for malformed marker", () => {
-    expect(parseInjectionMarker("<inject section=>")).toBeUndefined();
-    expect(parseInjectionMarker('<inject section="">Text')).toBeUndefined();
-  });
-
-  it("should be case insensitive for tag name", () => {
-    const result = parseInjectionMarker('<INJECT section="preamble" />Content');
-    expect(result?.target).toBe("preamble");
-  });
-
-  it("should handle marker in middle of text", () => {
-    const result = parseInjectionMarker(
-      'Before <inject section="Memories" /> after.'
-    );
-    expect(result?.target).toBe("Memories");
-    expect(result?.cleanedEntry).toBe("Before  after.");
-  });
-
-  it("should trim cleaned entry", () => {
-    const result = parseInjectionMarker(
-      '<inject section="preamble" />   Spaced content   '
-    );
-    expect(result?.cleanedEntry).toBe("Spaced content");
   });
 });
 

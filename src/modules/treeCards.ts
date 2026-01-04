@@ -3,14 +3,10 @@ import { booleanValidator, numberValidator } from "../utils/validation";
 import {
   getSection,
   setSection,
-  addWorldLoreCard,
   hasWorldLoreCard,
   truncateSection,
   getContextLength,
   appendToSection,
-  appendToPreamble,
-  prependToPostamble,
-  type SectionName,
 } from "../utils/virtualContext";
 
 export interface TreeCardsConfig {
@@ -22,36 +18,6 @@ export interface TreeCardsConfig {
 }
 
 const WIKILINK_PATTERN = /\[\[([^\]]+)\]\]/g;
-const INJECT_PATTERN = /<inject\s+section="([^"]+)"\s*\/?>/i;
-
-const VALID_INJECTION_TARGETS = new Set([
-  "preamble",
-  "World Lore",
-  "Story Summary",
-  "Memories",
-  "Narrative Checklist",
-  "Recent Story",
-  "Author's Note",
-  "postamble",
-]);
-
-type InjectionTarget = "preamble" | SectionName | "postamble";
-
-interface InjectionInfo {
-  target: InjectionTarget;
-  cleanedEntry: string;
-}
-
-export function parseInjectionMarker(entry: string): InjectionInfo | undefined {
-  const match = INJECT_PATTERN.exec(entry);
-  if (!match || !match[1]) return undefined;
-
-  const target = match[1].trim();
-  if (!VALID_INJECTION_TARGETS.has(target)) return undefined;
-
-  const cleanedEntry = entry.replace(INJECT_PATTERN, "").trim();
-  return { target: target as InjectionTarget, cleanedEntry };
-}
 
 export function stripWikilinks(text: string): string {
   return text.replace(WIKILINK_PATTERN, "$1");
@@ -313,25 +279,6 @@ export function collectLinkedCards(
   return topologicalSort(discovered, graph);
 }
 
-interface ProcessedCard {
-  card: StoryCard;
-  target: InjectionTarget;
-  entry: string;
-}
-
-function processCard(card: StoryCard): ProcessedCard {
-  if (!card.entry) {
-    return { card, target: "World Lore", entry: "" };
-  }
-
-  const injectionInfo = parseInjectionMarker(card.entry);
-  const baseEntry = injectionInfo?.cleanedEntry ?? card.entry;
-  const entry = stripWikilinks(baseEntry);
-  const target = injectionInfo?.target ?? "World Lore";
-
-  return { card, target, entry };
-}
-
 function addWorldLoreCardWithEntry(
   ctx: VirtualContext,
   card: StoryCard,
@@ -351,64 +298,6 @@ function addWorldLoreCardWithEntry(
   };
 
   return appendToSection(ctxWithCard, "World Lore", entry);
-}
-
-function injectToTarget(
-  ctx: VirtualContext,
-  processed: ProcessedCard
-): VirtualContext {
-  const { target, entry, card } = processed;
-  if (!entry.trim()) return ctx;
-
-  switch (target) {
-    case "preamble":
-      return appendToPreamble(ctx, entry);
-    case "postamble":
-      return prependToPostamble(ctx, entry);
-    case "World Lore":
-      return addWorldLoreCardWithEntry(ctx, card, entry);
-    default:
-      return appendToSection(ctx, target, entry);
-  }
-}
-
-function processTriggeredCardsForInjection(
-  ctx: VirtualContext,
-  triggeredCards: readonly StoryCard[]
-): VirtualContext {
-  let currentCtx = ctx;
-  const worldLoreSection = getSection(currentCtx, "World Lore");
-  if (!worldLoreSection) return currentCtx;
-
-  let worldLoreBody = worldLoreSection.body;
-
-  for (let i = 0; i < triggeredCards.length; i++) {
-    const card = triggeredCards[i];
-    if (!card?.entry) continue;
-
-    const injectionInfo = parseInjectionMarker(card.entry);
-    if (!injectionInfo || injectionInfo.target === "World Lore") continue;
-
-    const cleanedEntry = stripWikilinks(injectionInfo.cleanedEntry);
-    if (!cleanedEntry.trim()) continue;
-
-    if (worldLoreBody.includes(card.entry)) {
-      worldLoreBody = worldLoreBody.replace(card.entry, "").trim();
-      worldLoreBody = worldLoreBody.replace(/\n{3,}/g, "\n\n");
-    }
-
-    const processed: ProcessedCard = {
-      card,
-      target: injectionInfo.target,
-      entry: cleanedEntry,
-    };
-    currentCtx = setSection(currentCtx, "World Lore", worldLoreBody);
-    currentCtx = injectToTarget(currentCtx, processed);
-
-    worldLoreBody = getSection(currentCtx, "World Lore")?.body ?? worldLoreBody;
-  }
-
-  return currentCtx;
 }
 
 export const TreeCards: Module<TreeCardsConfig> = (() => {
@@ -460,8 +349,6 @@ export const TreeCards: Module<TreeCardsConfig> = (() => {
 
     const triggeredCards = ctx.worldLoreCards;
 
-    currentCtx = processTriggeredCardsForInjection(currentCtx, triggeredCards);
-
     const currentWorldLore = getSection(currentCtx, "World Lore");
     if (currentWorldLore) {
       const strippedWorldLore = stripWikilinks(currentWorldLore.body);
@@ -484,28 +371,18 @@ export const TreeCards: Module<TreeCardsConfig> = (() => {
       return currentCtx;
     }
 
-    const processedCards = linkedCards.map(card => processCard(card));
-
-    const worldLoreCards = processedCards.filter(p => p.target === "World Lore");
-    const otherCards = processedCards.filter(p => p.target !== "World Lore");
-
-    for (let i = 0; i < otherCards.length; i++) {
-      const p = otherCards[i];
-      if (!p) continue;
-      currentCtx = injectToTarget(currentCtx, p);
-    }
-
     let budgetRemaining = Math.floor((maxChars * config.linkPercentage) / 100);
 
-    for (let i = 0; i < worldLoreCards.length; i++) {
-      const p = worldLoreCards[i];
-      if (!p?.entry) continue;
+    for (let i = 0; i < linkedCards.length; i++) {
+      const card = linkedCards[i];
+      if (!card?.entry) continue;
 
-      if (hasWorldLoreCard(currentCtx, p.card.id)) {
+      if (hasWorldLoreCard(currentCtx, card.id)) {
         continue;
       }
 
-      const cardLength = p.entry.length + 2;
+      const entry = stripWikilinks(card.entry);
+      const cardLength = entry.length + 2;
       if (cardLength > budgetRemaining) {
         break;
       }
@@ -532,7 +409,7 @@ export const TreeCards: Module<TreeCardsConfig> = (() => {
         }
       }
 
-      currentCtx = injectToTarget(currentCtx, p);
+      currentCtx = addWorldLoreCardWithEntry(currentCtx, card, entry);
       budgetRemaining -= cardLength;
     }
 

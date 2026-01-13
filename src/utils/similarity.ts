@@ -176,7 +176,7 @@ export function findSentenceOverlap(
   sentences2: string[],
   similarityThreshold = 70
 ): number {
-  const maxToCheck = Math.min(3, sentences1.length, sentences2.length);
+  const maxToCheck = Math.min(sentences1.length, sentences2.length);
 
   let bestOverlapCount = 0;
   let bestTotalSimilarity = 0;
@@ -233,13 +233,13 @@ export function checkAndMerge(
   const overallSimilarity = calculateSimilarity(prevTrimmed, currTrimmed);
 
   if (overallSimilarity > 90) {
-    const merged =
-      prevTrimmed.length >= currTrimmed.length ? prevTrimmed : currTrimmed;
-    return {
-      shouldMerge: true,
-      mergedContent: merged,
-      reason: "full-duplicate",
-    };
+    if (currTrimmed.length <= prevTrimmed.length) {
+      return {
+        shouldMerge: true,
+        mergedContent: " ",
+        reason: "full-duplicate",
+      };
+    }
   }
 
   const sentences1 = splitIntoSentences(prevTrimmed);
@@ -257,7 +257,7 @@ export function checkAndMerge(
     if (remainingSentences2.length === 0) {
       return {
         shouldMerge: true,
-        mergedContent: currTrimmed,
+        mergedContent: " ",
         reason: "sentence-overlap",
       };
     }

@@ -98,7 +98,7 @@ SimilarityThreshold: 70`);
   );
 
   testWithAiDungeonEnvironment(
-    "should process identical outputs differently to avoid duplication",
+    "should reduce identical outputs to a space to avoid duplication",
     () => {
       addHistoryAction("You enter the room.", "do");
       addHistoryAction("The room is dark and cold.", "continue");
@@ -126,11 +126,7 @@ SimilarityThreshold: 70`);
       const secondOutput = "You see a door ahead.";
       const processedSecond = hooks.onOutput(secondOutput);
 
-      expect(processedSecond).toBe(secondOutput);
-
-      const duplicateCount =
-        processedSecond.split("You see a door ahead").length - 1;
-      expect(duplicateCount).toBe(1);
+      expect(processedSecond).toBe(" ");
     }
   );
 

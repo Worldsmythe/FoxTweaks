@@ -426,7 +426,7 @@ You continue forward.`;
 
       const systemMessageIndex = result.indexOf("<SYSTEM MESSAGE>");
       const continueFromIndex = result.indexOf("Continue From:");
-      expect(systemMessageIndex).toBeGreaterThan(continueFromIndex);
+      expect(systemMessageIndex).toBeLessThan(continueFromIndex);
     }
   );
 

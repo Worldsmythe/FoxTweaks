@@ -10,7 +10,7 @@ interface History {
 
 describe("Redundancy Module - Integration Tests", () => {
   testWithAiDungeonEnvironment(
-    "should not duplicate output when similar content is processed twice",
+    "should reduce duplicate output to a space when same content is processed twice",
     () => {
       const initialHistory: History[] = [
         { text: "You enter the dark room.", type: "do" },
@@ -43,10 +43,7 @@ SimilarityThreshold: 70`,
       const secondOutput = "A figure emerges from the shadows.";
       const processedSecond = hooks.onOutput(secondOutput);
 
-      expect(processedSecond).toBe(secondOutput);
-      expect(processedSecond).not.toContain(
-        "A figure emerges from the shadows.A figure emerges from the shadows."
-      );
+      expect(processedSecond).toBe(" ");
     }
   );
 
@@ -398,6 +395,157 @@ SimilarityThreshold: 70`,
       expect(processed).not.toContain("You lower yourself");
       expect(processed).not.toContain("cool stone");
       expect(processed).not.toContain("A slow nod");
+    }
+  );
+
+  testWithAiDungeonEnvironment(
+    "should handle exact duplicate output (3 sentences) by returning a space",
+    () => {
+      const previousOutput =
+        "The air in the dungeon is thick with the smell of damp stone and something metallic—old blood, maybe. Your torch casts flickering shadows that dance along the moss-slick walls like nervous ghosts. Every drip of water from the ceiling echoes like a tiny hammer strike.";
+      const initialHistory: History[] = [
+        { text: "You enter the dungeon.", type: "do" },
+        { text: previousOutput, type: "continue" },
+      ];
+      history = initialHistory;
+
+      const core = new FoxTweaks();
+      core.registerModule(Redundancy);
+
+      const configCard: StoryCard = {
+        id: "0",
+        title: "FoxTweaks Config",
+        keys: ["Configure FoxTweaks behavior"],
+        description: `--- Redundancy ---
+Enable: true
+SimilarityThreshold: 70`,
+        type: "class",
+        entry: "",
+      };
+      storyCards = [configCard];
+
+      const hooks = core.createHooks();
+
+      const exactDuplicate = previousOutput;
+      const processed = hooks.onOutput(exactDuplicate);
+
+      expect(processed).toBe(" ");
+    }
+  );
+
+  testWithAiDungeonEnvironment(
+    "should handle duplicate (3 sentences) with one extra sentence by returning only the new sentence",
+    () => {
+      const previousOutput =
+        "The air in the dungeon is thick with the smell of damp stone and something metallic—old blood, maybe. Your torch casts flickering shadows that dance along the moss-slick walls like nervous ghosts. Every drip of water from the ceiling echoes like a tiny hammer strike.";
+      const initialHistory: History[] = [
+        { text: "You enter the dungeon.", type: "do" },
+        { text: previousOutput, type: "continue" },
+      ];
+      history = initialHistory;
+
+      const core = new FoxTweaks();
+      core.registerModule(Redundancy);
+
+      const configCard: StoryCard = {
+        id: "0",
+        title: "FoxTweaks Config",
+        keys: ["Configure FoxTweaks behavior"],
+        description: `--- Redundancy ---
+Enable: true
+SimilarityThreshold: 70`,
+        type: "class",
+        entry: "",
+      };
+      storyCards = [configCard];
+
+      const hooks = core.createHooks();
+
+      const newSentence =
+        "Beside you, Sari's ears twitch, swiveling toward a faint scraping sound ahead.";
+      const duplicateWithExtra = previousOutput + " " + newSentence;
+      const processed = hooks.onOutput(duplicateWithExtra);
+
+      expect(processed).toBe(newSentence);
+      expect(processed).not.toContain("damp stone");
+      expect(processed).not.toContain("flickering shadows");
+      expect(processed).not.toContain("tiny hammer strike");
+    }
+  );
+
+  testWithAiDungeonEnvironment(
+    "should handle exact duplicate output (4 sentences) by returning a space",
+    () => {
+      const previousOutput =
+        'The air in the dungeon is thick with the smell of damp stone and something metallic—old blood, maybe. Your torch casts flickering shadows that dance along the moss-slick walls like nervous ghosts. Every drip of water from the ceiling echoes like a tiny hammer strike. Beside you, Sari\'s ears twitch, swiveling toward a faint scraping sound ahead.';
+      const initialHistory: History[] = [
+        { text: "You enter the dungeon.", type: "do" },
+        { text: previousOutput, type: "continue" },
+      ];
+      history = initialHistory;
+
+      const core = new FoxTweaks();
+      core.registerModule(Redundancy);
+
+      const configCard: StoryCard = {
+        id: "0",
+        title: "FoxTweaks Config",
+        keys: ["Configure FoxTweaks behavior"],
+        description: `--- Redundancy ---
+Enable: true
+SimilarityThreshold: 70`,
+        type: "class",
+        entry: "",
+      };
+      storyCards = [configCard];
+
+      const hooks = core.createHooks();
+
+      const exactDuplicate = previousOutput;
+      const processed = hooks.onOutput(exactDuplicate);
+
+      expect(processed).toBe(" ");
+    }
+  );
+
+  testWithAiDungeonEnvironment(
+    "should handle duplicate (4 sentences) with one extra sentence by returning only the new sentence",
+    () => {
+      const previousOutput =
+        'The air in the dungeon is thick with the smell of damp stone and something metallic—old blood, maybe. Your torch casts flickering shadows that dance along the moss-slick walls like nervous ghosts. Every drip of water from the ceiling echoes like a tiny hammer strike. Beside you, Sari\'s ears twitch, swiveling toward a faint scraping sound ahead.';
+      const initialHistory: History[] = [
+        { text: "You enter the dungeon.", type: "do" },
+        { text: previousOutput, type: "continue" },
+      ];
+      history = initialHistory;
+
+      const core = new FoxTweaks();
+      core.registerModule(Redundancy);
+
+      const configCard: StoryCard = {
+        id: "0",
+        title: "FoxTweaks Config",
+        keys: ["Configure FoxTweaks behavior"],
+        description: `--- Redundancy ---
+Enable: true
+SimilarityThreshold: 70`,
+        type: "class",
+        entry: "",
+      };
+      storyCards = [configCard];
+
+      const hooks = core.createHooks();
+
+      const newSentence =
+        'Her tail gives a single, sharp flick—her version of a raised eyebrow.';
+      const duplicateWithExtra = previousOutput + " " + newSentence;
+      const processed = hooks.onOutput(duplicateWithExtra);
+
+      expect(processed).toBe(newSentence);
+      expect(processed).not.toContain("damp stone");
+      expect(processed).not.toContain("flickering shadows");
+      expect(processed).not.toContain("tiny hammer strike");
+      expect(processed).not.toContain("Sari's ears twitch");
     }
   );
 });

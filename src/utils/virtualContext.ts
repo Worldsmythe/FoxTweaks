@@ -180,7 +180,7 @@ export function parseContext(
   }
 
   if (authorsNoteEndIndex !== null && authorsNoteEndIndex < text.length) {
-    postamble = text.slice(authorsNoteEndIndex).trim();
+    postamble = text.slice(authorsNoteEndIndex).trimStart();
   }
 
   for (const parsed of parsedSections) {
@@ -493,11 +493,11 @@ export function serializeContext(
   }
 
   if (ctx.postamble) {
-    const header = options.postambleHeader ?? "Continue From:";
     if (options.headerFormat === "markdown") {
+      const header = options.postambleHeader ?? "Continue From:";
       parts.push(`${options.markdownLevel} ${header}\n${ctx.postamble}`);
     } else {
-      parts.push(`${header}\n${ctx.postamble}`);
+      parts.push(ctx.postamble);
     }
   }
 

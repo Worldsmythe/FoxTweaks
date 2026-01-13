@@ -132,15 +132,14 @@ describe("checkAndMergeMessages", () => {
       expect(result.reason).toBe("full-duplicate");
     });
 
-    it("should detect near-duplicates and keep longer version", () => {
+    it("should reduce near-duplicate single sentences to a space", () => {
       const msg1 = "Almost exact same message.";
       const msg2 = "Almost exact same message with a bit more.";
 
       const result = checkAndMerge(msg1, msg2);
 
       expect(result.shouldMerge).toBe(true);
-      // Should keep the longer message
-      expect(result.mergedContent).toContain("with a bit more");
+      expect(result.mergedContent).toBe(" ");
     });
   });
 
@@ -151,8 +150,9 @@ describe("checkAndMergeMessages", () => {
 
       const result = checkAndMerge(msg1, msg2);
 
+      // Both are grammatically single sentences, so treated as similar overlap
       expect(result.shouldMerge).toBe(true);
-      expect(result.mergedContent).toBe(msg2);
+      expect(result.mergedContent).toBe(" ");
     });
 
     it("should handle quotes with punctuation at end", () => {
@@ -161,8 +161,9 @@ describe("checkAndMergeMessages", () => {
 
       const result = checkAndMerge(msg1, msg2);
 
+      // Both are grammatically single sentences, so treated as similar overlap
       expect(result.shouldMerge).toBe(true);
-      expect(result.mergedContent).toBe(msg2);
+      expect(result.mergedContent).toBe(" ");
     });
   });
 

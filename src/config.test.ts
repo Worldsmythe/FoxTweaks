@@ -11,6 +11,10 @@ import {
   NarrativeChecklist,
   type NarrativeChecklistConfig,
 } from "./modules/narrativeChecklist";
+import {
+  RandomNames,
+  type RandomNamesConfig,
+} from "./modules/randomNames";
 
 interface TestConfig {
   dice: DiceRollConfig;
@@ -20,6 +24,7 @@ interface TestConfig {
   betterYou: BetterYouConfig;
   context: ContextConfig;
   narrativeChecklist: NarrativeChecklistConfig;
+  randomNames: RandomNamesConfig;
   [key: string]: unknown;
 }
 
@@ -31,6 +36,7 @@ const modules = [
   BetterYou,
   Context,
   NarrativeChecklist,
+  RandomNames,
 ] as Module<unknown>[];
 
 describe("parseConfig - Full String Parsing", () => {
@@ -310,5 +316,67 @@ OutcomeLabels:
     expect(config.dice.outcomeLabels.p).toBe("Partial Success");
     expect(config.dice.outcomeLabels.f).toBe("Failure");
     expect(config.dice.outcomeLabels.F).toBe("Critical Failure!");
+  });
+
+  test("matches multi-word module names with spaces in section headers", () => {
+    const config = parseConfig<TestConfig>(
+      `--- Random Names ---
+Enable: true
+SectionHeader: NPC Names
+Names: [{"prefix": "Test", "count": 3, "id": "englishMasculine"}]`,
+      modules
+    );
+    expect(config.randomNames.enable).toBe(true);
+    expect(config.randomNames.sectionHeader).toBe("NPC Names");
+    expect(config.randomNames.names.length).toBe(1);
+    expect(config.randomNames.names[0]?.prefix).toBe("Test");
+    expect(config.randomNames.names[0]?.count).toBe(3);
+    expect(config.randomNames.names[0]?.id).toBe("englishMasculine");
+  });
+
+  test("parses two-level nested config for replacement groups", () => {
+    const config = parseConfig<TestConfig>(
+      `--- Random Names ---
+Enable: true
+Replacements:
+  Group1:
+    ReplaceNames: Elara, Lyra
+    ReplaceFrom: englishFeminine
+    Segments: 1
+  Group2:
+    ReplaceNames: Voss, Vance
+    ReplaceFrom: englishMasculine
+    Segments: -1`,
+      modules
+    );
+    const replacements = config.randomNames.replacements;
+    expect(replacements.length).toBe(2);
+    expect(replacements[0]?.patterns).toEqual(["Elara", "Lyra"]);
+    expect(replacements[0]?.bankId).toBe("englishFeminine");
+    expect(replacements[0]?.segments).toBe(1);
+    expect(replacements[1]?.patterns).toEqual(["Voss", "Vance"]);
+    expect(replacements[1]?.bankId).toBe("englishMasculine");
+    expect(replacements[1]?.segments).toBe(-1);
+  });
+
+  test("parses Names from two-level nested config", () => {
+    const config = parseConfig<TestConfig>(
+      `--- Random Names ---
+Enable: true
+Names:
+  English Masculine:
+    Count: 3
+    Id: englishMasculine
+  English Feminine:
+    Count: 2
+    Id: englishFeminine`,
+      modules
+    );
+    expect(config.randomNames.names.length).toBe(2);
+    expect(config.randomNames.names[0]?.prefix).toBe("English Masculine");
+    expect(config.randomNames.names[0]?.count).toBe(3);
+    expect(config.randomNames.names[0]?.id).toBe("englishMasculine");
+    expect(config.randomNames.names[1]?.prefix).toBe("English Feminine");
+    expect(config.randomNames.names[1]?.count).toBe(2);
   });
 });

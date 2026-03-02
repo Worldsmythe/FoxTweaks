@@ -30,6 +30,8 @@ import { BetterYou } from "./modules/betteryou";
 import { Context } from "./modules/context";
 import { NarrativeChecklist } from "./modules/narrativeChecklist";
 import { DebugStart, DebugEnd } from "./modules/debug";
+import { RandomNames } from "./modules/randomNames";
+import { RandomDiceRolls } from "./modules/randomDiceRolls";
 
 import { pinAndSortCards, findCard } from "./utils/storyCardHelpers";
 import { getLastAction, getLastActionOfType } from "./utils/historyHelpers";
@@ -48,6 +50,8 @@ core.registerModule(Redundancy);
 core.registerModule(BetterYou);
 core.registerModule(NarrativeChecklist);
 core.registerModule(Context);
+core.registerModule(RandomNames);
+core.registerModule(RandomDiceRolls);
 core.registerModule(DebugEnd);
 
 const hooks = core.createHooks();

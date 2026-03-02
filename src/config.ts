@@ -44,6 +44,22 @@ export function rebuildConfigLine(
   return base;
 }
 
+function getIndentDepth(line: string): number {
+  let spaces = 0;
+  for (let i = 0; i < line.length; i++) {
+    if (line[i] === " ") {
+      spaces++;
+    } else if (line[i] === "\t") {
+      spaces += 2;
+    } else {
+      break;
+    }
+  }
+  if (spaces === 0) return 0;
+  if (spaces <= 2) return 1;
+  return 2;
+}
+
 interface ParseContext {
   currentSection: string | null;
   currentModule: Module<unknown> | null;
@@ -75,6 +91,8 @@ export function parseConfig<T extends Record<string, unknown>>(
 
   let currentNestedKey: string | null = null;
   let currentNestedObject: Record<string, unknown> | null = null;
+  let currentSubKey: string | null = null;
+  let currentSubObject: Record<string, unknown> | null = null;
 
   for (const line of lines) {
     const trimmed = line.trim();
@@ -86,10 +104,12 @@ export function parseConfig<T extends Record<string, unknown>>(
       context.inReplacements = false;
       currentNestedKey = null;
       currentNestedObject = null;
+      currentSubKey = null;
+      currentSubObject = null;
 
       for (const module of modules) {
         if (
-          sectionName.includes(module.name.toLowerCase()) ||
+          sectionName.replace(/\s+/g, "").includes(module.name.toLowerCase()) ||
           (module.name === "redundancy" && sectionName.includes("dedup")) ||
           (module.name === "betterYou" &&
             (sectionName.includes("better") || sectionName.includes("you"))) ||
@@ -125,12 +145,14 @@ export function parseConfig<T extends Record<string, unknown>>(
     const sectionConfig = context.rawConfig[context.currentSection];
     if (!sectionConfig) continue;
 
-    const isIndented = line.length > 0 && (line[0] === ' ' || line[0] === '\t');
+    const indentDepth = getIndentDepth(line);
     const lowerKey = parsed.key.toLowerCase();
 
-    if (!isIndented) {
+    if (indentDepth === 0) {
       currentNestedKey = null;
       currentNestedObject = null;
+      currentSubKey = null;
+      currentSubObject = null;
 
       if (parsed.value === "" || parsed.value.trim() === "") {
         currentNestedKey = lowerKey;
@@ -139,12 +161,25 @@ export function parseConfig<T extends Record<string, unknown>>(
       } else {
         sectionConfig[lowerKey] = parsed.value;
       }
-    } else {
+    } else if (indentDepth === 1) {
+      currentSubKey = null;
+      currentSubObject = null;
+
       if (currentNestedObject && currentNestedKey) {
-        const preserveCase = context.currentSection === "betterYou" ||
-          (context.currentSection === "dice" && currentNestedKey === "outcomelabels");
-        const nestedKey = preserveCase ? parsed.key : lowerKey;
-        currentNestedObject[nestedKey] = parsed.value;
+        if (parsed.value === "" || parsed.value.trim() === "") {
+          currentSubKey = lowerKey;
+          currentSubObject = {};
+          currentNestedObject[lowerKey] = currentSubObject;
+        } else {
+          const preserveCase = context.currentSection === "betterYou" ||
+            (context.currentSection === "dice" && currentNestedKey === "outcomelabels");
+          const nestedKey = preserveCase ? parsed.key : lowerKey;
+          currentNestedObject[nestedKey] = parsed.value;
+        }
+      }
+    } else if (indentDepth >= 2) {
+      if (currentSubObject && currentSubKey) {
+        currentSubObject[lowerKey] = parsed.value;
       }
     }
   }

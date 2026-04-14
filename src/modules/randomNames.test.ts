@@ -663,4 +663,63 @@ describe("RandomNames Output Replacement", () => {
     expect(result).toContain("elara is lowercase");
     expect(result).not.toMatch(/\bElara\b/);
   });
+
+  test("replaces same name consistently within one message", () => {
+    const config = RandomNames.validateConfig({
+      enable: true,
+      replacements: {
+        group1: {
+          replacenames: "Lyra",
+          replacefrom: "englishFeminine",
+          segments: "0",
+        },
+      },
+    });
+
+    for (let attempt = 0; attempt < 10; attempt++) {
+      const result = RandomNames.hooks.onOutput?.(
+        '"Hello," said Lyra.\n"How are you?" asked Lyra.',
+        config,
+        mockContext
+      );
+      expect(result).toBeDefined();
+      if (result) {
+        const matches = result.match(/said (.+?)\./);
+        const askedMatches = result.match(/asked (.+?)\./);
+        expect(matches).toBeDefined();
+        expect(askedMatches).toBeDefined();
+        expect(matches?.[1]).toBe(askedMatches?.[1]);
+      }
+    }
+  });
+
+  test("replaces different names with different replacements", () => {
+    mockStoryCards.push({
+      id: "names",
+      keys: "",
+      title: "testNames",
+      entry: "Xavier\nYvonne\nZach\nAlice\nBob",
+      description: "",
+    });
+
+    const config = RandomNames.validateConfig({
+      enable: true,
+      replacements: {
+        group1: {
+          replacenames: "Lyra, Elara",
+          replacefrom: "testNames",
+          segments: "0",
+        },
+      },
+    });
+
+    const result = RandomNames.hooks.onOutput?.(
+      "Lyra greeted Elara.",
+      config,
+      mockContext
+    );
+    expect(result).toBeDefined();
+    expect(result).not.toContain("Lyra");
+    expect(result).not.toContain("Elara");
+  });
 });

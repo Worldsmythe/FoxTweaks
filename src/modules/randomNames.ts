@@ -243,6 +243,7 @@ export const RandomNames: Module<RandomNamesConfig> = (() => {
     }
 
     let result = text;
+    const replacementCache = new Map<string, string>();
 
     for (let i = 0; i < config.replacements.length; i++) {
       const group = config.replacements[i];
@@ -253,15 +254,20 @@ export const RandomNames: Module<RandomNamesConfig> = (() => {
         if (!pattern) continue;
 
         const regex = patternToRegex(pattern);
-        result = result.replace(regex, () => {
+        result = result.replace(regex, (match) => {
+          const cached = replacementCache.get(match);
+          if (cached) return cached;
+
           const names = getNamesFromNameBank(
             group.bankId,
             context.storyCards,
             1
           );
           const generated = names[0] ?? "";
-          if (!generated) return pattern;
-          return extractSegment(generated, group.segments);
+          if (!generated) return match;
+          const replacement = extractSegment(generated, group.segments);
+          replacementCache.set(match, replacement);
+          return replacement;
         });
       }
     }

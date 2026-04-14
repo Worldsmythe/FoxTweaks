@@ -252,8 +252,8 @@ Enable: false`);
 
       const contextDebugCard = findStoryCard((c) => c.type === "debug_context");
       expect(contextDebugCard).toBeDefined();
-      expect(contextDebugCard?.entry).toContain("Original context text:");
-      expect(contextDebugCard?.entry).toContain("Resulting context text:");
+      expect(contextDebugCard?.description).toContain("Original context text:");
+      expect(contextDebugCard?.description).toContain("Resulting context text:");
     }
   );
 
@@ -488,7 +488,7 @@ Remember Sari's fox-like agility.`;
 
       const debugCard = findStoryCard((c) => c.type === "debug_context");
       expect(debugCard).toBeDefined();
-      expect(debugCard?.entry).toContain("Changed: Yes");
+      expect(debugCard?.description).toContain("Changed: Yes");
     }
   );
 

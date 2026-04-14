@@ -40,11 +40,11 @@ Replacements:
     const debugCard = storyCards.find((c) => c.type === "debug_input");
     expect(debugCard).toBeDefined();
     expect(debugCard?.title).toBe("Input Debug");
-    expect(debugCard?.entry).toContain("Original input text:");
-    expect(debugCard?.entry).toContain("> You grab my sword.");
-    expect(debugCard?.entry).toContain("Resulting input text:");
-    expect(debugCard?.entry).toContain("> You grab your sword.");
-    expect(debugCard?.entry).toContain("Changed: Yes");
+    expect(debugCard?.description).toContain("Original input text:");
+    expect(debugCard?.description).toContain("> You grab my sword.");
+    expect(debugCard?.description).toContain("Resulting input text:");
+    expect(debugCard?.description).toContain("> You grab your sword.");
+    expect(debugCard?.description).toContain("Changed: Yes");
   });
 
   testWithAiDungeonEnvironment(
@@ -113,7 +113,7 @@ Enable: false`,
 
       const debugCard = storyCards.find((c) => c.type === "debug_input");
       expect(debugCard).toBeDefined();
-      expect(debugCard?.entry).toContain("Changed: No");
+      expect(debugCard?.description).toContain("Changed: No");
     }
   );
 
@@ -216,7 +216,7 @@ Replacements:
 
       const firstDebugCard = storyCards.find((c) => c.type === "debug_input");
       expect(firstDebugCard).toBeDefined();
-      expect(firstDebugCard?.entry).toContain("my sword");
+      expect(firstDebugCard?.description).toContain("my sword");
 
       const initialCardCount = storyCards.length;
 
@@ -224,8 +224,8 @@ Replacements:
 
       const secondDebugCard = storyCards.find((c) => c.type === "debug_input");
       expect(secondDebugCard).toBeDefined();
-      expect(secondDebugCard?.entry).toContain("my shield");
-      expect(secondDebugCard?.entry).not.toContain("my sword");
+      expect(secondDebugCard?.description).toContain("my shield");
+      expect(secondDebugCard?.description).not.toContain("my sword");
 
       expect(storyCards.length).toBe(initialCardCount);
     }
@@ -271,16 +271,16 @@ SimilarityThreshold: 70`,
 
       const outputDebugCard = storyCards.find((c) => c.type === "debug_output");
       expect(outputDebugCard).toBeDefined();
-      expect(outputDebugCard?.entry).toContain("Original output text:");
-      expect(outputDebugCard?.entry).toContain("It has strange markings");
-      expect(outputDebugCard?.entry).toContain("Resulting output text:");
-      expect(outputDebugCard?.entry).toContain(
+      expect(outputDebugCard?.description).toContain("Original output text:");
+      expect(outputDebugCard?.description).toContain("It has strange markings");
+      expect(outputDebugCard?.description).toContain("Resulting output text:");
+      expect(outputDebugCard?.description).toContain(
         "The markings glow faintly in the dark."
       );
-      expect(outputDebugCard?.entry).not.toContain(
+      expect(outputDebugCard?.description).not.toContain(
         "Resulting output text:\n```\nIt has strange markings"
       );
-      expect(outputDebugCard?.entry).toContain("Changed: Yes");
+      expect(outputDebugCard?.description).toContain("Changed: Yes");
     }
   );
 
@@ -310,8 +310,8 @@ EnableDebugCards: true`,
 
       const debugCard = storyCards.find((c) => c.type === "debug_input");
       expect(debugCard).toBeDefined();
-      expect(debugCard?.entry).toContain("Regular text without the > You prefix");
-      expect(debugCard?.entry).toContain("Changed: No");
+      expect(debugCard?.description).toContain("Regular text without the > You prefix");
+      expect(debugCard?.description).toContain("Changed: No");
     }
   );
 

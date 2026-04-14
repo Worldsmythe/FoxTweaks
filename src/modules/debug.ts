@@ -15,15 +15,15 @@ function storeTempDebugData(hookType: string, text: string): void {
   if (existing) {
     const index = findStoryCardIndex((c) => c.type === `debug_temp_${hookType}`);
     if (index !== -1) {
-      updateStoryCard(index, DEBUG_TEMP_CARD_KEYS, text);
+      updateStoryCard(index, DEBUG_TEMP_CARD_KEYS, "", undefined, undefined, text);
     }
   } else {
     const card = addStoryCard(
       DEBUG_TEMP_CARD_KEYS,
-      text,
+      "",
       `debug_temp_${hookType}`,
       undefined,
-      undefined,
+      text,
       { returnCard: true }
     );
     if (card) {
@@ -116,7 +116,7 @@ Changed: ${originalText !== finalText ? "Yes" : "No"}`;
     if (existing) {
       const index = findStoryCardIndex((c) => c.type === `debug_${hookType}`);
       if (index !== -1) {
-        updateStoryCard(index, "foxtweaks_debug", cardContent);
+        updateStoryCard(index, "foxtweaks_debug", "", undefined, undefined, cardContent);
         const card = storyCards[index];
         if (card) {
           card.title = cardTitle;
@@ -126,10 +126,10 @@ Changed: ${originalText !== finalText ? "Yes" : "No"}`;
     } else {
       const card = addStoryCard(
         "foxtweaks_debug",
-        cardContent,
+        "",
         `debug_${hookType}`,
         cardTitle,
-        "FoxTweaks debug information",
+        cardContent,
         { returnCard: true }
       );
       if (card) {
@@ -148,8 +148,8 @@ Changed: ${originalText !== finalText ? "Yes" : "No"}`;
     }
 
     const tempCard = findStoryCard((c) => c.type === `debug_temp_${hookType}`);
-    if (tempCard && tempCard.entry) {
-      const originalText = tempCard.entry;
+    if (tempCard && tempCard.description) {
+      const originalText = tempCard.description;
       createOrUpdateDebugCard(hookType, originalText, text);
 
       const tempIndex = findStoryCardIndex(

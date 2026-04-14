@@ -352,4 +352,77 @@ Replacements:
       expect(debugCard).toBeDefined();
     }
   );
+
+  testWithAiDungeonEnvironment(
+    "should include per-module timing data in debug card entry",
+    () => {
+      history = [];
+      const core = new FoxTweaks();
+      core.registerModule(DebugStart);
+      core.registerModule(BetterYou);
+      core.registerModule(DebugEnd);
+
+      const configCard: StoryCard = {
+        id: "0",
+        title: "FoxTweaks Config",
+        keys: ["Configure FoxTweaks behavior"],
+        description: `--- Debug ---
+EnableDebugCards: true
+
+--- Better You ---
+Enable: true
+Replacements:
+  my: your
+  me: you`,
+        type: "class",
+        entry: "",
+      };
+      storyCards = [configCard];
+
+      const hooks = core.createHooks();
+
+      hooks.onInput("> You grab my sword.");
+
+      const debugCard = storyCards.find((c) => c.type === "debug_input");
+      expect(debugCard).toBeDefined();
+      expect(debugCard?.entry).toContain("Module Performance (input):");
+      expect(debugCard?.entry).toContain("debug:");
+      expect(debugCard?.entry).toContain("betterYou:");
+      expect(debugCard?.entry).toContain("ms");
+      expect(debugCard?.entry).toContain("Total:");
+    }
+  );
+
+  testWithAiDungeonEnvironment(
+    "should not include timing data when debug is disabled",
+    () => {
+      history = [];
+      const core = new FoxTweaks();
+      core.registerModule(DebugStart);
+      core.registerModule(BetterYou);
+      core.registerModule(DebugEnd);
+
+      const configCard: StoryCard = {
+        id: "0",
+        title: "FoxTweaks Config",
+        keys: ["Configure FoxTweaks behavior"],
+        description: `--- Debug ---
+EnableDebugCards: false
+
+--- Better You ---
+Enable: true
+Replacements:
+  my: your`,
+        type: "class",
+        entry: "",
+      };
+      storyCards = [configCard];
+
+      const hooks = core.createHooks();
+      hooks.onInput("> You grab my sword.");
+
+      const debugCard = storyCards.find((c) => c.type === "debug_input");
+      expect(debugCard).toBeUndefined();
+    }
+  );
 });

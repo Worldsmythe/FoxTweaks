@@ -92,10 +92,29 @@ export const DebugEnd: Module<DebugConfig> = (() => {
     };
   }
 
+  interface ModuleTiming {
+    name: string;
+    durationMs: number;
+  }
+
+  function formatTimings(hookType: string, timings: ModuleTiming[]): string {
+    const lines: string[] = [`Module Performance (${hookType}):`];
+    let total = 0;
+    for (let i = 0; i < timings.length; i++) {
+      const t = timings[i];
+      if (!t) continue;
+      lines.push(`  ${t.name}: ${t.durationMs}ms`);
+      total += t.durationMs;
+    }
+    lines.push(`  Total: ${total}ms`);
+    return lines.join("\n");
+  }
+
   function createOrUpdateDebugCard(
     hookType: string,
     originalText: string,
-    finalText: string
+    finalText: string,
+    entryContent: string
   ): void {
     const cardTitle = `${hookType.charAt(0).toUpperCase() + hookType.slice(1)} Debug`;
 
@@ -116,7 +135,7 @@ Changed: ${originalText !== finalText ? "Yes" : "No"}`;
     if (existing) {
       const index = findStoryCardIndex((c) => c.type === `debug_${hookType}`);
       if (index !== -1) {
-        updateStoryCard(index, "foxtweaks_debug", "", undefined, undefined, cardContent);
+        updateStoryCard(index, "foxtweaks_debug", entryContent, undefined, undefined, cardContent);
         const card = storyCards[index];
         if (card) {
           card.title = cardTitle;
@@ -126,7 +145,7 @@ Changed: ${originalText !== finalText ? "Yes" : "No"}`;
     } else {
       const card = addStoryCard(
         "foxtweaks_debug",
-        "",
+        entryContent,
         `debug_${hookType}`,
         cardTitle,
         cardContent,
@@ -141,7 +160,8 @@ Changed: ${originalText !== finalText ? "Yes" : "No"}`;
   function processDebugHook(
     text: string,
     config: DebugConfig,
-    hookType: string
+    hookType: string,
+    context: HookContext
   ): string {
     if (!config.enableDebugCards) {
       return text;
@@ -150,7 +170,15 @@ Changed: ${originalText !== finalText ? "Yes" : "No"}`;
     const tempCard = findStoryCard((c) => c.type === `debug_temp_${hookType}`);
     if (tempCard && tempCard.description) {
       const originalText = tempCard.description;
-      createOrUpdateDebugCard(hookType, originalText, text);
+
+      let entryContent = "";
+      const timingsKey = `timings_${hookType}`;
+      const timings = context.state[timingsKey];
+      if (Array.isArray(timings)) {
+        entryContent = formatTimings(hookType, timings as ModuleTiming[]);
+      }
+
+      createOrUpdateDebugCard(hookType, originalText, text, entryContent);
 
       const tempIndex = findStoryCardIndex(
         (c) => c.type === `debug_temp_${hookType}`
@@ -168,7 +196,7 @@ Changed: ${originalText !== finalText ? "Yes" : "No"}`;
     config: DebugConfig,
     context: HookContext
   ): string {
-    return processDebugHook(text, config, "input");
+    return processDebugHook(text, config, "input", context);
   }
 
   function onContext(
@@ -176,7 +204,7 @@ Changed: ${originalText !== finalText ? "Yes" : "No"}`;
     config: DebugConfig,
     context: HookContext
   ): VirtualContext {
-    processDebugHook(serializeContext(ctx), config, "context");
+    processDebugHook(serializeContext(ctx), config, "context", context);
     return ctx;
   }
 
@@ -185,7 +213,7 @@ Changed: ${originalText !== finalText ? "Yes" : "No"}`;
     config: DebugConfig,
     context: HookContext
   ): string {
-    return processDebugHook(text, config, "output");
+    return processDebugHook(text, config, "output", context);
   }
 
   return {

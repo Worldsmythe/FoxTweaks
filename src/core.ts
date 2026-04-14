@@ -9,6 +9,14 @@ import { parseContext, serializeContext } from "./utils/virtualContext";
 const CARD_TITLE = "FoxTweaks Config";
 const CARD_KEYS = "Configure FoxTweaks behavior";
 
+function isDebugEnabled(config: Record<string, unknown>): boolean {
+  const debugConfig = config["debug"];
+  if (typeof debugConfig === "object" && debugConfig !== null) {
+    return (debugConfig as Record<string, unknown>)["enableDebugCards"] === true;
+  }
+  return false;
+}
+
 interface GlobalAIState {
   activePrompt: AIPromptRequest | null;
   promptQueue: AIPromptRequest[];
@@ -503,6 +511,14 @@ export class FoxTweaks {
       const globalStoryCards = storyCards || [];
       const globalInfo = info || {};
 
+      const debugEnabled = isDebugEnabled(config);
+      let debugTimings: Array<{ name: string; durationMs: number }> | undefined;
+      if (debugEnabled) {
+        debugTimings = [];
+        const debugState = this.getModuleState("debug");
+        debugState["timings_input"] = debugTimings;
+      }
+
       for (const module of this.modules) {
         if (module.hooks.onInput) {
           const moduleConfig = config[module.name];
@@ -517,11 +533,15 @@ export class FoxTweaks {
               info: globalInfo,
               ai: createAIContext(module.name),
             };
+            const start = debugEnabled ? Date.now() : 0;
             currentText = module.hooks.onInput(
               currentText,
               moduleConfig,
               context
             );
+            if (debugTimings) {
+              debugTimings.push({ name: module.name, durationMs: Date.now() - start });
+            }
           }
         }
       }
@@ -538,6 +558,14 @@ export class FoxTweaks {
       const globalHistory = history || [];
       const globalStoryCards = storyCards || [];
       const globalInfo = info || {};
+
+      const debugEnabled = isDebugEnabled(config);
+      let debugTimings: Array<{ name: string; durationMs: number }> | undefined;
+      if (debugEnabled) {
+        debugTimings = [];
+        const debugState = this.getModuleState("debug");
+        debugState["timings_context"] = debugTimings;
+      }
 
       const maxChars = (globalInfo as unknown as Record<string, unknown>).maxChars as number | undefined;
       let virtualCtx = parseContext(text, globalStoryCards, maxChars);
@@ -556,11 +584,15 @@ export class FoxTweaks {
               info: globalInfo,
               ai: createAIContext(module.name),
             };
+            const start = debugEnabled ? Date.now() : 0;
             virtualCtx = module.hooks.onContext(
               virtualCtx,
               moduleConfig,
               hookContext
             );
+            if (debugTimings) {
+              debugTimings.push({ name: module.name, durationMs: Date.now() - start });
+            }
           }
         }
       }
@@ -627,6 +659,14 @@ export class FoxTweaks {
       const globalStoryCards = storyCards || [];
       const globalInfo = info || {};
 
+      const debugEnabled = isDebugEnabled(config);
+      let debugTimings: Array<{ name: string; durationMs: number }> | undefined;
+      if (debugEnabled) {
+        debugTimings = [];
+        const debugState = this.getModuleState("debug");
+        debugState["timings_output"] = debugTimings;
+      }
+
       for (const module of this.modules) {
         if (module.hooks.onOutput) {
           const moduleConfig = config[module.name];
@@ -641,11 +681,15 @@ export class FoxTweaks {
               info: globalInfo,
               ai: createAIContext(module.name),
             };
+            const start = debugEnabled ? Date.now() : 0;
             currentText = module.hooks.onOutput(
               currentText,
               moduleConfig,
               context
             );
+            if (debugTimings) {
+              debugTimings.push({ name: module.name, durationMs: Date.now() - start });
+            }
           }
         }
       }

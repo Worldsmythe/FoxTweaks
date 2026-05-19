@@ -1,7 +1,6 @@
 import type { Module, AIPromptRequest, SerializeOptions } from "./types";
 import { parseConfig, parseConfigLine, rebuildConfigLine } from "./config";
 import { findCard } from "./utils/storyCardHelpers";
-import { getDefaultInterjectEntry } from "./modules/interject";
 import { migrateMarkdownHeadersToContext } from "./modules/context";
 import { DEBUG } from "./debug" with { type: "macro" };
 import { parseContext, serializeContext } from "./utils/virtualContext";
@@ -107,6 +106,15 @@ export class FoxTweaks {
     return this.modules.map((m) => m.name);
   }
 
+  private getDefaultCardEntry(): string {
+    for (const module of this.modules) {
+      if (module.defaultCardEntry !== undefined) {
+        return module.defaultCardEntry;
+      }
+    }
+    return "";
+  }
+
   /**
    * Ensures the config card exists and is properly configured
    * @returns The config card
@@ -137,7 +145,7 @@ export class FoxTweaks {
         card.description = sections
           .map((s) => this.disableConfigSection(defaults[s] || ""))
           .join("\n\n");
-        card.entry = getDefaultInterjectEntry();
+        card.entry = this.getDefaultCardEntry();
 
         if (DEBUG()) {
           log(
@@ -155,7 +163,7 @@ export class FoxTweaks {
       this.runConfigMigrations(card);
 
       if (!card.entry || card.entry.trim() === "") {
-        card.entry = getDefaultInterjectEntry();
+        card.entry = this.getDefaultCardEntry();
       }
     }
 

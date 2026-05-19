@@ -92,5 +92,6 @@ RemainingTurns: 0  # Countdown (managed automatically)`,
     initialState: {
       remainingTurns: 0,
     },
+    defaultCardEntry: getDefaultInterjectEntry(),
   };
 })();

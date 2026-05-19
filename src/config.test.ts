@@ -69,9 +69,7 @@ describe("parseConfig - Full String Parsing", () => {
     const config = parseConfig<TestConfig>(BetterYou.configSection, modules);
     expect(config.betterYou.enable).toBe(true);
     expect(config.betterYou.replacements).toEqual({
-      me: "you",
       mine: "yours",
-      Me: "You",
       Mine: "Yours",
     });
     expect(config.betterYou.patterns).toEqual({

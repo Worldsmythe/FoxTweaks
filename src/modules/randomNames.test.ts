@@ -1,6 +1,8 @@
 import { describe, test, expect, beforeEach } from "bun:test";
 import { RandomNames } from "./randomNames";
 import { parseContext, getSection } from "../utils/virtualContext";
+import { createHookContext } from "../test-utils";
+import type { HookContext } from "../types";
 
 describe("RandomNames Config Parsing", () => {
   test("parses enable key", () => {
@@ -131,35 +133,11 @@ describe("RandomNames Config Parsing", () => {
 
 describe("RandomNames Context Injection", () => {
   let mockStoryCards: StoryCard[];
-  let mockContext: {
-    state: Record<string, unknown>;
-    updateConfig: () => void;
-    history: History[];
-    storyCards: StoryCard[];
-    info: Record<string, unknown>;
-    ai: {
-      requestPrompt: () => void;
-      hasActivePrompt: () => boolean;
-      getResponse: () => null;
-      clearResponse: () => void;
-    };
-  };
+  let mockContext: HookContext;
 
   beforeEach(() => {
     mockStoryCards = [];
-    mockContext = {
-      state: {},
-      updateConfig: () => {},
-      history: [],
-      storyCards: mockStoryCards,
-      info: {},
-      ai: {
-        requestPrompt: () => {},
-        hasActivePrompt: () => false,
-        getResponse: () => null,
-        clearResponse: () => {},
-      },
-    };
+    mockContext = createHookContext({ storyCards: mockStoryCards });
   });
 
   test("does not inject when disabled", () => {
@@ -248,7 +226,7 @@ describe("RandomNames Context Injection", () => {
   test("resolves id to story card when bank not found", () => {
     mockStoryCards.push({
       id: "custom",
-      keys: "",
+      keys: [],
       title: "myCustomNames",
       entry: "Xavier\nYvonne\nZach",
       description: "",
@@ -411,41 +389,17 @@ describe("RandomNames Replacement Config Parsing", () => {
 
 describe("RandomNames Output Replacement", () => {
   let mockStoryCards: StoryCard[];
-  let mockContext: {
-    state: Record<string, unknown>;
-    updateConfig: () => void;
-    history: History[];
-    storyCards: StoryCard[];
-    info: Record<string, unknown>;
-    ai: {
-      requestPrompt: () => void;
-      hasActivePrompt: () => boolean;
-      getResponse: () => null;
-      clearResponse: () => void;
-    };
-  };
+  let mockContext: HookContext;
 
   beforeEach(() => {
     mockStoryCards = [];
-    mockContext = {
-      state: {},
-      updateConfig: () => {},
-      history: [],
-      storyCards: mockStoryCards,
-      info: {},
-      ai: {
-        requestPrompt: () => {},
-        hasActivePrompt: () => false,
-        getResponse: () => null,
-        clearResponse: () => {},
-      },
-    };
+    mockContext = createHookContext({ storyCards: mockStoryCards });
   });
 
   test("replaces exact name matches in output", () => {
     mockStoryCards.push({
       id: "names",
-      keys: "",
+      keys: [],
       title: "testNames",
       entry: "Xavier\nYvonne\nZach",
       description: "",
@@ -476,7 +430,7 @@ describe("RandomNames Output Replacement", () => {
   test("replaces wildcard prefix matches", () => {
     mockStoryCards.push({
       id: "names",
-      keys: "",
+      keys: [],
       title: "testNames",
       entry: "Xavier\nYvonne\nZach",
       description: "",
@@ -506,7 +460,7 @@ describe("RandomNames Output Replacement", () => {
   test("replaces wildcard suffix matches", () => {
     mockStoryCards.push({
       id: "names",
-      keys: "",
+      keys: [],
       title: "testNames",
       entry: "Xavier\nYvonne\nZach",
       description: "",
@@ -637,7 +591,7 @@ describe("RandomNames Output Replacement", () => {
   test("is case-sensitive", () => {
     mockStoryCards.push({
       id: "names",
-      keys: "",
+      keys: [],
       title: "testNames",
       entry: "Xavier",
       description: "",
@@ -696,7 +650,7 @@ describe("RandomNames Output Replacement", () => {
   test("replaces different names with different replacements", () => {
     mockStoryCards.push({
       id: "names",
-      keys: "",
+      keys: [],
       title: "testNames",
       entry: "Xavier\nYvonne\nZach\nAlice\nBob",
       description: "",

@@ -126,9 +126,7 @@ export const BetterYou: Module<BetterYouConfig> = (() => {
 Enable: true  # Enable/disable pronoun replacements
 # Replace words outside of dialogue (respects word boundaries):
 Replacements:
-  me: you
   mine: yours
-  Me: You
   Mine: Yours
 # Pattern replacements applied everywhere (including dialogue):
 Patterns:

@@ -135,6 +135,12 @@ export interface Module<TConfig> {
    * @returns Migrated config section text
    */
   migrateConfigSection?: (sectionText: string) => string;
+
+  /**
+   * Optional default text for the config card's entry field.
+   * If multiple registered modules provide this, the first wins.
+   */
+  defaultCardEntry?: string;
 }
 
 /**

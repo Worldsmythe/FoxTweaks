@@ -14,12 +14,10 @@ const banner = `/**
  *
  * Modules:
  * - DiceRoll: Automatic dice rolling for action attempts
- * - Interject: Temporary system messages to guide the AI
  * - Paragraph: Formatting and indentation control
  * - Redundancy: Detection and merging of redundant AI outputs
  * - BetterYou: Pronoun replacement for better narrative flow
- * - NarrativeChecklist: Track story objectives with AI-powered completion
- * - MarkdownHeaders: Format context headers with markdown
+ * - Random Names: Replace tropey names in AI output with generated names
  *
  * Usage:
  *   Input modifier:   text = FoxTweaks.Hooks.onInput(text);

@@ -82,7 +82,7 @@ export const DiceRoll: Module<DiceRollConfig> = (() => {
   function onInput(
     text: string,
     config: DiceRollConfig,
-    context: HookContext
+    _context: HookContext
   ): string {
     if (!config.enable || !config.triggers.length) {
       return text;
@@ -90,7 +90,7 @@ export const DiceRoll: Module<DiceRollConfig> = (() => {
 
     const triggerPattern = config.triggers.map(escapeRegex).join("|");
 
-    for (const [setName, setData] of Object.entries(config.customSets)) {
+    for (const [, setData] of Object.entries(config.customSets)) {
       if (!setData.words.length || !setData.outcomes.length) continue;
 
       const modifierPattern = setData.words.map(escapeRegex).join("|");

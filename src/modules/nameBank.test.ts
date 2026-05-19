@@ -80,9 +80,14 @@ describe("generateName", () => {
       ["Alpha", "Beta"],
     ];
     const name = generateName(columns);
-    expect(name.split(" ").length).toBe(2);
-    expect(["Oort", "Tryphax"]).toContain(name.split(" ")[0]);
-    expect(["Alpha", "Beta"]).toContain(name.split(" ")[1]);
+    const parts = name.split(" ");
+    expect(parts.length).toBe(2);
+    const [first, second] = parts;
+    if (first === undefined || second === undefined) {
+      throw new Error("expected two parts");
+    }
+    expect(["Oort", "Tryphax"]).toContain(first);
+    expect(["Alpha", "Beta"]).toContain(second);
   });
 
   test("generates from three columns", () => {
@@ -144,7 +149,7 @@ describe("getNamesFromNameBank", () => {
     const mockCards: StoryCard[] = [
       {
         id: "custom",
-        keys: "",
+        keys: [],
         title: "mybank",
         entry: "Xavier\nYvonne\nZach",
         description: "",
@@ -161,7 +166,7 @@ describe("getNamesFromNameBank", () => {
     const mockCards: StoryCard[] = [
       {
         id: "custom",
-        keys: "",
+        keys: [],
         title: "multicolumn",
         entry: "Oort, Alpha\nTryphax, Beta\nCortex, Prime",
         description: "",
@@ -178,7 +183,7 @@ describe("getNamesFromNameBank", () => {
     const mockCards: StoryCard[] = [
       {
         id: "custom",
-        keys: "",
+        keys: [],
         title: "spaces",
         entry: "Red Dragon, Fire Breath\nBlue Dragon, Ice Breath",
         description: "",

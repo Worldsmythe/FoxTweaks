@@ -288,15 +288,19 @@ Names:
     Count: 3
     Id: englishFeminine
 # Replace tropey names in AI output with generated names:
-# Replacements:
-#   Group1:
-#     ReplaceNames: Elara, Lyra, Kael*
-#     ReplaceFrom: englishFeminine
-#     Segments: 1
-#   Group2:
-#     ReplaceNames: Voss, Vance, Henderson
-#     ReplaceFrom: englishMasculine
-#     Segments: -1`,
+Replacements:
+  LastNames:
+    ReplaceNames: Voss, Vance, Henderson, Chen, Thorne
+    ReplaceFrom: englishMasculine
+    Segments: -1
+  Feminine:
+    ReplaceNames: Lyra, Lena, Anya, Elara, Kaela, Kaelin, Clara, Seraphina, Valeria, Sasha, Clara
+    ReplaceFrom: englishFeminine
+    Segments: 1
+  Masculine:
+    ReplaceNames: Kael, Kaelan, Valerian, Valerius
+    ReplaceFrom: englishMasculine
+    Segments: 1`,
     validateConfig,
     hooks: {
       onContext,

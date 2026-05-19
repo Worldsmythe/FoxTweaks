@@ -1,6 +1,7 @@
 import { describe, test, expect } from "bun:test";
 import { RandomDiceRolls } from "./randomDiceRolls";
 import { parseContext, getSection } from "../utils/virtualContext";
+import { createHookContext } from "../test-utils";
 
 describe("RandomDiceRolls Config Parsing", () => {
   test("parses enable key", () => {
@@ -47,19 +48,7 @@ describe("RandomDiceRolls Config Parsing", () => {
 });
 
 describe("RandomDiceRolls Context Injection", () => {
-  const mockContext = {
-    state: {},
-    updateConfig: () => {},
-    history: [],
-    storyCards: [],
-    info: {},
-    ai: {
-      requestPrompt: () => {},
-      hasActivePrompt: () => false,
-      getResponse: () => null,
-      clearResponse: () => {},
-    },
-  };
+  const mockContext = createHookContext();
 
   test("injects roll results into Memories section", () => {
     const config = RandomDiceRolls.validateConfig({

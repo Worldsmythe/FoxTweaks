@@ -6,6 +6,9 @@ import {
   type SectionInjectionConfig,
 } from "./sectionInjection";
 import { parseContext, getSection } from "../utils/virtualContext";
+import { createHookContext } from "../test-utils";
+
+const hookContext = createHookContext();
 
 function createCard(
   id: string,
@@ -174,7 +177,7 @@ The story.`;
     const ctx = parseContext(preContext, cards, 10000);
     const config: SectionInjectionConfig = { enable: false };
 
-    const result = onContext(ctx, config);
+    const result = onContext(ctx, config, hookContext);
     const worldLore = getSection(result, "World Lore")?.body ?? "";
 
     expect(worldLore).toContain("Content to inject");
@@ -202,7 +205,7 @@ The story.`;
     ];
 
     const ctx = parseContext(preContext, cards, 10000);
-    const result = onContext(ctx, enabledConfig);
+    const result = onContext(ctx, enabledConfig, hookContext);
 
     expect(result.preamble).toContain("## Instructions");
     expect(result.preamble).toContain("These are special instructions");
@@ -231,7 +234,7 @@ The story.`;
     ];
 
     const ctx = parseContext(preContext, cards, 10000);
-    const result = onContext(ctx, enabledConfig);
+    const result = onContext(ctx, enabledConfig, hookContext);
 
     expect(result.postamble).toContain("End of context note");
 
@@ -261,7 +264,7 @@ The story.`;
     ];
 
     const ctx = parseContext(preContext, cards, 10000);
-    const result = onContext(ctx, enabledConfig);
+    const result = onContext(ctx, enabledConfig, hookContext);
 
     const memories = getSection(result, "Memories")?.body ?? "";
     expect(memories).toContain("Remember this important fact");
@@ -309,7 +312,7 @@ The story.`;
     ];
 
     const ctx = parseContext(preContext, cards, 10000);
-    const result = onContext(ctx, enabledConfig);
+    const result = onContext(ctx, enabledConfig, hookContext);
 
     expect(result.preamble).toContain("Preamble content");
     expect(result.postamble).toContain("Postamble content");
@@ -342,7 +345,7 @@ The story.`;
     ];
 
     const ctx = parseContext(preContext, cards, 10000);
-    const result = onContext(ctx, enabledConfig);
+    const result = onContext(ctx, enabledConfig, hookContext);
 
     expect(result.preamble).toContain("The Beastkin are a race");
     expect(result.preamble).not.toContain("[[");
@@ -368,7 +371,7 @@ The story.`;
     ];
 
     const ctx = parseContext(preContext, cards, 10000);
-    const result = onContext(ctx, enabledConfig);
+    const result = onContext(ctx, enabledConfig, hookContext);
 
     const worldLore = getSection(result, "World Lore")?.body ?? "";
     expect(worldLore).toContain("This stays in World Lore");
@@ -387,7 +390,7 @@ The story.`;
     const cards = [createCard("1", { title: "NoEntry", keys: ["noentry"] })];
 
     const ctx = parseContext(preContext, cards, 10000);
-    const result = onContext(ctx, enabledConfig);
+    const result = onContext(ctx, enabledConfig, hookContext);
 
     const worldLore = getSection(result, "World Lore")?.body ?? "";
     expect(worldLore).toContain("Some content");
@@ -411,7 +414,7 @@ The story.`;
     ];
 
     const ctx = parseContext(preContext, cards, 10000);
-    const result = onContext(ctx, enabledConfig);
+    const result = onContext(ctx, enabledConfig, hookContext);
 
     const worldLore = getSection(result, "World Lore")?.body ?? "";
     expect(worldLore).toContain("Regular card content");
@@ -443,7 +446,7 @@ The story.`;
     ];
 
     const ctx = parseContext(preContext, cards, 10000);
-    const result = onContext(ctx, enabledConfig);
+    const result = onContext(ctx, enabledConfig, hookContext);
 
     const worldLore = getSection(result, "World Lore")?.body ?? "";
     expect(worldLore).not.toContain("\n\n\n");

@@ -218,6 +218,45 @@ HeaderLevel: ##`,
   );
 });
 
+describe("FoxTweaks - Default Card Entry", () => {
+  testWithAiDungeonEnvironment(
+    "leaves card entry empty when no registered module provides one",
+    () => {
+      const core = new FoxTweaks();
+      core.registerModule(testModule);
+
+      core.loadConfig();
+
+      const card = findConfigCard();
+      expect(card?.entry ?? "").toBe("");
+    }
+  );
+
+  testWithAiDungeonEnvironment(
+    "uses defaultCardEntry from first module that provides one",
+    () => {
+      const entryModule: Module<{ enable: boolean }> = {
+        name: "entryProvider",
+        configSection: "--- Entry Provider ---\nEnable: true",
+        validateConfig: (raw) => ({
+          enable: typeof raw.enable === "boolean" ? raw.enable : true,
+        }),
+        hooks: {},
+        defaultCardEntry: "hello from a module",
+      };
+
+      const core = new FoxTweaks();
+      core.registerModule(testModule);
+      core.registerModule(entryModule);
+
+      core.loadConfig();
+
+      const card = findConfigCard();
+      expect(card?.entry).toBe("hello from a module");
+    }
+  );
+});
+
 describe("FoxTweaks - Config Card Creation and Repair", () => {
   testWithAiDungeonEnvironment(
     "creates new config card with all modules disabled when no card exists",

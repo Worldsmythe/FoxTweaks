@@ -1,4 +1,24 @@
 import { test } from "bun:test";
+import type { HookContext } from "./types";
+
+export function createHookContext(
+  overrides: Partial<HookContext> = {}
+): HookContext {
+  return {
+    state: {},
+    updateConfig: () => {},
+    history: [],
+    storyCards: [],
+    info: { actionCount: 0, characterNames: [] },
+    ai: {
+      requestPrompt: () => {},
+      hasActivePrompt: () => false,
+      getResponse: () => null,
+      clearResponse: () => {},
+    },
+    ...overrides,
+  };
+}
 
 let nextCardId = 0;
 

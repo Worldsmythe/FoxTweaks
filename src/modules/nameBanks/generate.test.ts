@@ -51,8 +51,12 @@ describe("generateFromBank", () => {
       const name = generateFromBank(bank);
       const parts = name.split(" ");
       expect(parts.length).toBe(2);
-      expect(["Khab", "Khad"]).toContain(parts[0]);
-      expect(["Khedar", "Kharuk"]).toContain(parts[1]);
+      const [first, second] = parts;
+      if (first === undefined || second === undefined) {
+        throw new Error("expected two parts");
+      }
+      expect(["Khab", "Khad"]).toContain(first);
+      expect(["Khedar", "Kharuk"]).toContain(second);
     });
 
     test("returns empty string for empty columns", () => {

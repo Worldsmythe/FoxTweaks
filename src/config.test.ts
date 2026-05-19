@@ -185,12 +185,14 @@ Enable: true  # Enable/disable dice rolling
 Triggers: try, attempt, cast, attack, shoot, throw, brace yourself
 # Default probability distribution (S=Crit Success, s=Success, p=Partial, f=Fail, F=Crit Fail):
 Default: S s s s p f f F
-# Custom probability sets:
-Confident: S S s s s p p f f
-Unconfident: s s p p f f f F F
-# Words that trigger custom sets:
-ConfidentWords: assuredly, confidently, doubtlessly, skillfully
-UnconfidentWords: clumsily, tentatively, doubtfully, hesitantly, haphazardly
+# Custom probability sets (Words trigger the matching Outcomes distribution):
+CustomSets:
+  Confident:
+    Outcomes: S S s s s p p f f
+    Words: assuredly, confidently, doubtlessly, skillfully
+  Unconfident:
+    Outcomes: s s p p f f f F F
+    Words: clumsily, tentatively, doubtfully, hesitantly, haphazardly
 
 --- Interject ---
 Enable: true  # Enable/disable interject feature
@@ -257,6 +259,14 @@ MinContextChars: 2000  # Minimum characters to preserve for recent story`;
       "f",
       "F",
     ]);
+    expect(config.dice.customSets["confident"]).toEqual({
+      outcomes: ["S", "S", "s", "s", "s", "p", "p", "f", "f"],
+      words: ["assuredly", "confidently", "doubtlessly", "skillfully"],
+    });
+    expect(config.dice.customSets["unconfident"]).toEqual({
+      outcomes: ["s", "s", "p", "p", "f", "f", "f", "F", "F"],
+      words: ["clumsily", "tentatively", "doubtfully", "hesitantly", "haphazardly"],
+    });
 
     // Interject
     expect(config.interject.enable).toBe(true);

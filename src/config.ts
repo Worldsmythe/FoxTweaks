@@ -107,22 +107,11 @@ export function parseConfig<T extends Record<string, unknown>>(
       currentSubKey = null;
       currentSubObject = null;
 
+      const normalizedSectionName = sectionName.replace(/\s+/g, "");
       for (const module of modules) {
         if (
-          sectionName.replace(/\s+/g, "").includes(module.name.toLowerCase()) ||
-          (module.name === "redundancy" && sectionName.includes("dedup")) ||
-          (module.name === "betterYou" &&
-            (sectionName.includes("better") || sectionName.includes("you"))) ||
-          (module.name === "markdownHeaders" &&
-            (sectionName.includes("markdown") || sectionName.includes("headers"))) ||
-          (module.name === "narrativeChecklist" &&
-            (sectionName.includes("narrative") || sectionName.includes("checklist"))) ||
-          (module.name === "treeCards" &&
-            (sectionName.includes("tree") && sectionName.includes("cards"))) ||
-          (module.name === "wordBoundaryTriggers" &&
-            (sectionName.includes("word") && sectionName.includes("boundary"))) ||
-          (module.name === "sectionInjection" &&
-            (sectionName.includes("section") && sectionName.includes("injection")))
+          normalizedSectionName === module.name.toLowerCase() ||
+          (module.name === "redundancy" && normalizedSectionName === "dedup")
         ) {
           context.currentSection = module.name;
           context.currentModule = module;

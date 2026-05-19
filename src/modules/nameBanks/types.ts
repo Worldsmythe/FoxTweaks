@@ -3,7 +3,8 @@ export type NameStrategy =
   | "spaceJoin"
   | "concat"
   | "hyphenConcat"
-  | "vowelSafeConcat";
+  | "vowelSafeConcat"
+  | "blend";
 
 export interface NameBank {
   readonly strategy: NameStrategy;

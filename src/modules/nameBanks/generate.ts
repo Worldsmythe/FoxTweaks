@@ -1,6 +1,8 @@
 import type { NameBank } from "./types";
 
 const VOWELS = new Set(["a", "e", "i", "o", "u"]);
+const BRIDGE_CONSONANTS = ["n", "r", "s", "t", "v"] as const;
+const BRIDGE_VOWELS = ["a", "e", "i", "o", "u"] as const;
 const MAX_VOWEL_RETRIES = 10;
 
 function pickRandom(arr: ReadonlyArray<string>): string | undefined {
@@ -83,6 +85,44 @@ export function generateFromBank(bank: NameBank): string {
         if (picked) parts.push(picked);
       }
       return parts.join("");
+    }
+
+    case "blend": {
+      const colA = bank.columns[0];
+      const colB = bank.columns[1];
+      if (!colA || !colB || colA.length === 0 || colB.length === 0) return "";
+
+      const nameA = pickRandom(colA);
+      const nameB = pickRandom(colB);
+      if (!nameA || !nameB) return "";
+
+      const direction = Math.random() < 0.5;
+      const first = direction ? nameA : nameB;
+      const second = direction ? nameB : nameA;
+
+      const maxSliceFirst = Math.min(first.length, 4);
+      const sliceFirst = Math.floor(Math.random() * (maxSliceFirst - 1)) + 2;
+      const maxSliceSecond = Math.min(second.length, 4);
+      const sliceSecond = Math.floor(Math.random() * (maxSliceSecond - 1)) + 2;
+
+      const part1 = first.slice(0, sliceFirst);
+      const part2 = second.slice(second.length - sliceSecond);
+
+      const lastChar = part1[part1.length - 1];
+      const firstChar = part2[0];
+      let bridge = "";
+
+      if (lastChar && firstChar) {
+        const lastIsVowel = isVowel(lastChar);
+        const firstIsVowel = isVowel(firstChar);
+        if (lastIsVowel && firstIsVowel) {
+          bridge = pickRandom(BRIDGE_CONSONANTS) ?? "";
+        } else if (!lastIsVowel && !firstIsVowel) {
+          bridge = pickRandom(BRIDGE_VOWELS) ?? "";
+        }
+      }
+
+      return part1 + bridge + part2;
     }
   }
 }

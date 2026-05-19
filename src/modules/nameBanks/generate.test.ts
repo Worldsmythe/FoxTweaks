@@ -153,6 +153,41 @@ describe("generateFromBank", () => {
     });
   });
 
+  describe("blend strategy", () => {
+    test("produces a non-empty string from two columns", () => {
+      const bank: NameBank = {
+        strategy: "blend",
+        columns: [
+          ["Chanterelle", "Porcini", "Morel"],
+          ["Sporeling", "Mycelium", "Truffle"],
+        ],
+      };
+      for (let i = 0; i < 20; i++) {
+        const name = generateFromBank(bank);
+        expect(name.length).toBeGreaterThan(0);
+      }
+    });
+
+    test("returns empty string when a column is empty", () => {
+      const bank: NameBank = { strategy: "blend", columns: [[], ["Truffle"]] };
+      expect(generateFromBank(bank)).toBe("");
+    });
+
+    test("returns empty string when columns are missing", () => {
+      const bank: NameBank = { strategy: "blend", columns: [] };
+      expect(generateFromBank(bank)).toBe("");
+    });
+
+    test("blended name contains parts from source names", () => {
+      const bank: NameBank = {
+        strategy: "blend",
+        columns: [["Abcdef"], ["Zyxwvu"]],
+      };
+      const name = generateFromBank(bank);
+      expect(name.length).toBeGreaterThanOrEqual(4);
+    });
+  });
+
   describe("hyphenConcat strategy", () => {
     test("joins two parts with hyphen", () => {
       const bank: NameBank = {

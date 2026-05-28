@@ -49,16 +49,18 @@
  *
  * Context structure:
  * ```
- * [AI instructions]
- * [Plot essentials]
+ * [Plot Essentials — the value of state.memory.context, or the UI "Plot Essentials"
+ *  field if unset. Appears at the top of the context.]
+ *
  * World Lore:
  * [Story cards injected here]
  *
  * Story Summary:
- * [Summary content]
+ * [Summary content — Latitude calls this "Story Summary"; auto-maintained.]
  *
  * Memories:
- * [Story's memories or the value of state.memory.context, if set]
+ * [Memory Bank entries — vector-retrieved auto-summaries, NOT the same as
+ *  state.memory.context (which is Plot Essentials, above).]
  *
  * Recent Story:
  * [History actions]
@@ -66,6 +68,10 @@
  * [Last AI response or player action]
  * [The value of state.memory.frontMemory]
  * ```
+ *
+ * **AI Instructions are not part of this context text.** They're sent as a
+ * separate system message preceding the context, so scripts cannot see or
+ * mutate them.
  *
  * Story cards are injected into the context when their keys match content in
  * the recent story separated by a newline.
@@ -202,8 +208,11 @@ declare global {
    */
   interface StateMemory {
     /**
-     * Added to the beginning of the context, before history.
-     * Corresponds to the Memory field in the UI.
+     * The Plot Essentials text at the top of the context.
+     * Corresponds to the "Plot Essentials" field in the UI (sometimes
+     * historically referred to as "Memory"). NOT the same as the
+     * "Memories:" section in the context, which holds vector-retrieved
+     * Memory Bank entries.
      */
     context?: PlotEssentials;
     /**
@@ -248,6 +257,16 @@ declare global {
   }
 
   /**
+   * Metadata about the story-generation model in use for this turn.
+   */
+  interface StoryModelInfo {
+    /** Display name of the model (e.g., "Wayfarer Small 2", "Muse 12B"). */
+    name: string;
+    /** Version identifier for the model. */
+    version: string;
+  }
+
+  /**
    * Contextual information about the current adventure and AI generation.
    */
   interface Info {
@@ -270,6 +289,21 @@ declare global {
      * Useful for calculating available space for dynamic content.
      */
     memoryLength?: number;
+    /**
+     * True when the current model uses cache-efficient assembly, which
+     * means the output of the context modifier (`onContext`) is NOT used
+     * for the turn — AID sends the pre-assembled context directly. Persistent
+     * state mutations (e.g., `state.memory.context`, story card edits) still
+     * apply and take effect on subsequent turns.
+     */
+    useCacheEfficient?: boolean;
+    /** Metadata about the story-generation model in use this turn. */
+    storyModel?: StoryModelInfo;
+    /**
+     * Reason the model returned an empty output, if any. Populated only on
+     * empty generations (e.g., safety filtering, model error).
+     */
+    emptyOutputReason?: string;
   }
 
   /**

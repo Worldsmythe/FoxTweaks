@@ -71,6 +71,20 @@ export function findConfigCard(): StoryCard | undefined {
   return findStoryCard((c) => c.title === "FoxTweaks Config");
 }
 
+export function getCardKeys(card: StoryCard): string[] {
+  const raw = card.keys as unknown;
+  if (Array.isArray(raw)) {
+    return raw.filter((k): k is string => typeof k === "string");
+  }
+  if (typeof raw === "string") {
+    return raw
+      .split(",")
+      .map((k) => k.trim())
+      .filter((k) => k.length > 0);
+  }
+  return [];
+}
+
 export function findCard(titleOrKeys: string): StoryCard | undefined {
   if (!storyCards) return undefined;
 

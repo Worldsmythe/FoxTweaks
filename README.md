@@ -9,6 +9,7 @@ Worldsmythe's FoxTweaks script for AI Dungeon.
     - [Redundancy](#redundancy)
     - [Better You](#better-you)
     - [Random Names](#random-names)
+    - [Placeholders](#placeholders)
     - [Unified configuration system](#unified-configuration-system)
   - [Scenario Script Installation Guide](#scenario-script-installation-guide)
   - [For Developers](#for-developers)
@@ -24,6 +25,7 @@ Worldsmythe's FoxTweaks script for AI Dungeon.
 - **Redundancy**: Detection and merging of redundant AI outputs (with fuzzy matching, by me)
 - **Better You**: Pronoun replacement for better narrative flow that hasn't been fixed in over a year (by me)
 - **Random Names**: Replace tropey names in AI output with generated names
+- **Placeholders**: `{{...}}` markers for scene setup — fallbacks for skipped scenario placeholders, conditional branches and transclusion based on player input, character-creator capture into Plot Essentials, and one-shot scaffolding-card cleanup
 
 ### Dice Roll
 
@@ -73,6 +75,71 @@ Replace pronouns and fix capitalization for better narrative flow. Supports two 
 ### Random Names
 
 Replace tropey names in AI output with generated names.
+
+### Placeholders
+
+`{{...}}` markers placed inline in scenario text (Plot Essentials, AI Instructions, scenario start, story card entries). They run on the first script-eligible turn — the earliest moment scripts can read the character-creator output (per Latitude staff, no scripts run during `info.actionCount === 0`).
+
+The markers run across three evaluation passes plus a one-shot card-removal sweep:
+
+| Marker | What it does |
+|---|---|
+| `{{% comment %}}` | Stripped entirely. |
+| `{{default <expr> \| <fallback>}}` | If `<expr>` resolves non-empty, use it. Otherwise use `<fallback>`. Wrap an AID `${name}` placeholder to give it a default when the player skips it. |
+| `{{if <expr> ~= "<choices>" \| <then> \| <else>}}` | Levenshtein-fuzzy-match `<expr>` against comma-separated `<choices>`. Custom threshold via `~=85`. |
+| `{{if <expr> == "<choices>" \| <then> \| <else>}}` | Case-insensitive exact match against any choice. |
+| `{{if <expr> <op> <num> \| <then> \| <else>}}` | Numeric comparison (`<`, `>`, `<=`, `>=`, `==`, `!=`). Supports a single trailing arithmetic op on the LHS (e.g. `${age}+5 > 20`). |
+| `{{if <expr> ~= "<cardType>" transclude}}` | Picks the story card of `type=<cardType>` whose title/key best matches `<expr>`, and emits its `entry` at the marker's position. Use `==` for exact match. |
+| `{{filter <expr> <name> [\| <arg>...]}}` | Text transforms: `capitalize`, `uncapitalize` (lowercase first char only, preserves the rest), `trim`, `lower`, `upper`, `replace \| <pattern> \| <replacement>` (regex with implicit `g` flag, `\n`/`\t` escapes in the replacement), `dedupe \| <needle>` (collapse adjacent runs of `<needle>` to a single instance — e.g. `dedupe \| .` turns `fit body..` into `fit body.`). Composable via nesting. |
+| `{{cleanup <expr> [\| <prefix> [\| <suffix>]]}}` | A detector for the AID `${Type $ if you have a thing.}{Thing prompt?}` pattern — typing `$` in the first promotes the next literal into a real `${...}` placeholder. If any `{prompt?}` literal (curly braces *not* preceded by `$`) remains in `<expr>` after AID's interpolation, the player didn't follow the toggle protocol, so cleanup emits empty so the outer `{{default}}` can fall through. Otherwise it trims `<expr>` and emits: bare → `cleaned`; 1-pipe → `prefix + " " + cleaned`; 2-pipe → `prefix + " " + cleaned + suffix`. Empty `<expr>` also emits empty in every mode. |
+| `{{capture}}` | Emits the character-creator opening output at the marker's position (cached on the first eligible turn). |
+| `{{capture into=<section> paragraph=<N>}}` | Removes the marker and injects the captured output as paragraph `N` of `<section>`. |
+| `{{extract <prefix>}}` | Pulls a field value out of the captured creator output. `<prefix>` may be a literal like `"Name:"` or a regex literal `/Name:\s*(\w+)/`. |
+| `{{removepost <marker>}}` | After value markers settle, truncate the section body at the first occurrence of `<marker>`. |
+| `{{removepre <marker>}}` | After value markers settle, drop everything before (and including) the first occurrence of `<marker>`. |
+| `{{remove}}` | Placed in a story card's body or keys, deletes that card during the one-shot sweep on the first eligible turn. |
+
+**Skipped placeholder fallback.** Wrap an optional AID placeholder so it gets a sensible default when the player declines to fill it in:
+
+```
+You are {{default ${name} | a nameless wanderer}}.
+```
+
+**Conditional traveling companion.** AID's `${...}` placeholder system can be chained: typing `$` in `${Type $ if you have a thing.}` turns the next `{Thing prompt?}` literal into a real `${Thing prompt?}` that AID then asks. Combine with `{{cleanup}}` and `{{default}}`:
+
+```
+{{default
+  {{cleanup ${Type $ if you have a travelling companion.}{Traveling companion's name?} | You are traveling with | ,}}
+  {{cleanup ${Type $ if you have a travelling companion.}{Traveling companion's physical description?}}}
+| You are traveling alone.}}
+```
+
+If the player types `$` and fills in both fields, the two cleanups produce `You are traveling with Kira,` and `A warrior of some renown with auburn hair and green eyes.` — the `{{default}}` joins them. If the player skips, both cleanups return empty and the outer fallback `You are traveling alone.` wins.
+
+**Choose-a-weapon via transclusion.** Define story cards of `type=mythical-weapons` for Excalibur, Mjolnir, and Zeus' Bolt. In Plot Essentials, write:
+
+```
+Your weapon of choice: {{if ${weapon} ~= "mythical-weapons" transclude}}
+```
+
+The player's pick is fuzzy-matched against the cards' titles/keys; the chosen card's body is emitted in place.
+
+**Character-creator capture.** Combine `{{extract}}` to lift fields out of the creator's output, `{{capture}}` to drop in the whole text, and `{{removepost}}` to crop the AI's prose follow-up. Put on the scaffolding card body the literal `{{remove}}` so the card is auto-deleted on the first turn:
+
+```
+Plot Essentials:
+Name: {{extract "Name:"}}
+Class: {{extract "Class:"}}
+
+{{capture}}
+{{removepost "You are"}}
+```
+
+```
+Scaffolding card body (deleted on turn 1):
+Choose your class from: warrior, mage, rogue.
+{{remove}}
+```
 
 ### Unified configuration system
 

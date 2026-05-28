@@ -22,6 +22,7 @@ import { Redundancy } from "./modules/redundancy";
 import { BetterYou } from "./modules/betteryou";
 import { DebugStart, DebugEnd } from "./modules/debug";
 import { RandomNames } from "./modules/randomNames";
+import { Placeholders } from "./modules/placeholders";
 
 import { pinAndSortCards, findCard } from "./utils/storyCardHelpers";
 import { getLastAction, getLastActionOfType } from "./utils/historyHelpers";
@@ -35,6 +36,7 @@ core.registerModule(Paragraph);
 core.registerModule(Redundancy);
 core.registerModule(BetterYou);
 core.registerModule(RandomNames);
+core.registerModule(Placeholders);
 core.registerModule(DebugEnd);
 
 const hooks = core.createHooks();

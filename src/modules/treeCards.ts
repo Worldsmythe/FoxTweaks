@@ -1,5 +1,6 @@
 import type { Module, HookContext, VirtualContext } from "../types";
 import { booleanValidator, numberValidator } from "../utils/validation";
+import { getCardKeys } from "../utils/storyCardHelpers";
 import {
   getSection,
   setSection,
@@ -55,10 +56,11 @@ export function findCardByReference(
 
   for (let i = 0; i < cards.length; i++) {
     const card = cards[i];
-    if (!card || !card.keys) continue;
+    if (!card) continue;
 
-    for (let j = 0; j < card.keys.length; j++) {
-      const key = card.keys[j];
+    const keys = getCardKeys(card);
+    for (let j = 0; j < keys.length; j++) {
+      const key = keys[j];
       if (key && key.toLowerCase().includes(lowerRef)) {
         return card;
       }
@@ -77,10 +79,11 @@ export function extractImplicitLinks(
 
   for (let i = 0; i < cards.length; i++) {
     const card = cards[i];
-    if (!card || !card.keys) continue;
+    if (!card) continue;
 
-    for (let j = 0; j < card.keys.length; j++) {
-      const key = card.keys[j];
+    const keys = getCardKeys(card);
+    for (let j = 0; j < keys.length; j++) {
+      const key = keys[j];
       if (key && lowerEntry.includes(key.toLowerCase())) {
         linkedCards.push(card);
         break;

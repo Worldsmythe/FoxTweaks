@@ -1,6 +1,7 @@
 import type { Module, HookContext, VirtualContext } from "../types";
 import { booleanValidator } from "../utils/validation";
 import { escapeRegex } from "../utils/string";
+import { getCardKeys } from "../utils/storyCardHelpers";
 import {
   getSection,
   setSection,
@@ -78,11 +79,12 @@ export const WordBoundaryTriggers: Module<WordBoundaryTriggersConfig> = (() => {
 
     for (let i = 0; i < context.storyCards.length; i++) {
       const card = context.storyCards[i];
-      if (!card || !card.keys || !card.entry) continue;
+      if (!card || !card.entry) continue;
       if (isConfigCard(card)) continue;
 
-      for (let j = 0; j < card.keys.length; j++) {
-        const key = card.keys[j];
+      const keys = getCardKeys(card);
+      for (let j = 0; j < keys.length; j++) {
+        const key = keys[j];
         if (!key) continue;
 
         if (matchesWordBoundary(searchText, key)) {

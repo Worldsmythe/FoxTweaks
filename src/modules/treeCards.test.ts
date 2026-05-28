@@ -13,7 +13,7 @@ function createCard(
   id: string,
   options: {
     title?: string;
-    keys?: string[];
+    keys?: string | string[];
     entry?: string;
   } = {}
 ): StoryCard {
@@ -151,6 +151,16 @@ describe("extractImplicitLinks", () => {
     const entry = "Some text.";
     const linked = extractImplicitLinks(entry, cardsWithoutKeys);
     expect(linked).toEqual([]);
+  });
+
+  it("should handle comma-separated string keys (AI Dungeon runtime form)", () => {
+    const cardsWithStringKeys = [
+      createCard("1", { keys: "foxkin, fox-people" }),
+      createCard("2", { keys: "magic,arcane" }),
+    ];
+    const entry = "The foxkin used arcane power.";
+    const linked = extractImplicitLinks(entry, cardsWithStringKeys);
+    expect(linked.map((c) => c.id)).toEqual(["1", "2"]);
   });
 });
 

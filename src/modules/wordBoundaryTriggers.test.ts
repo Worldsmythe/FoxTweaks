@@ -10,7 +10,7 @@ function createCard(
   id: string,
   options: {
     title?: string;
-    keys?: string[];
+    keys?: string | string[];
     entry?: string;
     type?: string;
   } = {}
@@ -422,6 +422,30 @@ The fox and the vixen appeared together.`;
 
     const cards = [
       createCard("1", { title: "Fox", keys: ["fox", "vixen"], entry: "Fox entry." }),
+    ];
+
+    const ctx = parseContext(preContext, cards, 10000);
+    const hookContext = createHookContext(cards);
+
+    const result = onContext(ctx, enabledConfig, hookContext);
+
+    expect(result.worldLoreCards.length).toBe(1);
+    expect(result.worldLoreCards[0]?.id).toBe("1");
+  });
+
+  it("should handle comma-separated string keys (AI Dungeon runtime form)", () => {
+    const preContext = `### Preamble
+
+World Lore:
+### Native
+
+Native content.
+
+Recent Story:
+The vixen ran past.`;
+
+    const cards = [
+      createCard("1", { title: "Fox", keys: "fox, vixen", entry: "Fox entry." }),
     ];
 
     const ctx = parseContext(preContext, cards, 10000);

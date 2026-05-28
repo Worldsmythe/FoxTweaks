@@ -145,8 +145,8 @@ declare global {
   interface StoryCard {
     /** A unique identifier for the story card */
     id: string;
-    /** Keys that trigger this card's inclusion in the model context when matched */
-    keys?: string[];
+    /** Keys that trigger this card's inclusion in the model context when matched. AI Dungeon stores this as a comma-separated string at runtime; use getCardKeys() to normalize. */
+    keys?: string | string[];
     /** Category for organizing story cards (e.g., "character", "location", "item") */
     type?: string;
     /** The content injected into context when this card is triggered */

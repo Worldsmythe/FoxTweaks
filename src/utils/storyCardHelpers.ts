@@ -79,7 +79,6 @@ export function getCardKeys(card: StoryCard): string[] {
   if (typeof raw === "string") {
     return raw
       .split(",")
-      .map((k) => k.trim())
       .filter((k) => k.length > 0);
   }
   return [];

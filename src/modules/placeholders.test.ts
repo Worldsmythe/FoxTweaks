@@ -411,51 +411,51 @@ describe("evalIf transclude form via resolveMarkers", () => {
 
 describe("evalFilter via resolveMarkers", () => {
   it("capitalize", () => {
-    expect(resolveMarkers("{{filter jake capitalize}}", baseEvalContext)).toBe(
+    expect(resolveMarkers("{{filter capitalize jake}}", baseEvalContext)).toBe(
       "Jake"
     );
   });
 
   it("trim", () => {
-    expect(resolveMarkers('{{filter "  hi  " trim}}', baseEvalContext)).toBe(
+    expect(resolveMarkers('{{filter trim "  hi  "}}', baseEvalContext)).toBe(
       "hi"
     );
   });
 
   it("lower", () => {
-    expect(resolveMarkers("{{filter HELLO lower}}", baseEvalContext)).toBe(
+    expect(resolveMarkers("{{filter lower HELLO}}", baseEvalContext)).toBe(
       "hello"
     );
   });
 
   it("upper", () => {
-    expect(resolveMarkers("{{filter hello upper}}", baseEvalContext)).toBe(
+    expect(resolveMarkers("{{filter upper hello}}", baseEvalContext)).toBe(
       "HELLO"
     );
   });
 
   it("replace with literal pattern", () => {
     expect(
-      resolveMarkers("{{filter foobar replace | foo | baz}}", baseEvalContext)
+      resolveMarkers("{{filter replace foobar | foo | baz}}", baseEvalContext)
     ).toBe("bazbar");
   });
 
   it("replace with regex pattern", () => {
     expect(
-      resolveMarkers("{{filter 123abc replace | ^\\d+ | }}", baseEvalContext)
+      resolveMarkers("{{filter replace 123abc | ^\\d+ | }}", baseEvalContext)
     ).toBe("abc");
   });
 
   it("replace decodes \\n in the replacement", () => {
     expect(
-      resolveMarkers("{{filter a//b//c replace | // | \\n}}", baseEvalContext)
+      resolveMarkers("{{filter replace a//b//c | // | \\n}}", baseEvalContext)
     ).toBe("a\nb\nc");
   });
 
   it("composes via nesting", () => {
     expect(
       resolveMarkers(
-        "{{filter {{filter '  hi  ' trim}} capitalize}}",
+        "{{filter capitalize {{filter trim '  hi  '}}}}",
         baseEvalContext
       )
     ).toBe("Hi");
@@ -463,8 +463,8 @@ describe("evalFilter via resolveMarkers", () => {
 
   it("leaves unknown filter in place", () => {
     expect(
-      resolveMarkers("{{filter jake invented_filter}}", baseEvalContext)
-    ).toBe("{{filter jake invented_filter}}");
+      resolveMarkers("{{filter invented_filter jake}}", baseEvalContext)
+    ).toBe("{{filter invented_filter jake}}");
   });
 });
 
@@ -582,37 +582,37 @@ describe("applyCleanupDirectives", () => {
 describe("dedupe filter", () => {
   it("collapses runs of a single character to one instance", () => {
     expect(
-      resolveMarkers("{{filter 'foo... bar.....' dedupe | .}}", baseEvalContext)
+      resolveMarkers("{{filter dedupe 'foo... bar.....' | .}}", baseEvalContext)
     ).toBe("foo. bar.");
   });
 
   it("collapses repeated runs of a multi-char needle", () => {
     expect(
-      resolveMarkers("{{filter 'foo... bar......' dedupe | ...}}", baseEvalContext)
+      resolveMarkers("{{filter dedupe 'foo... bar......' | ...}}", baseEvalContext)
     ).toBe("foo... bar...");
   });
 
   it("leaves single instances alone", () => {
     expect(
-      resolveMarkers("{{filter 'a.b.c' dedupe | .}}", baseEvalContext)
+      resolveMarkers("{{filter dedupe 'a.b.c' | .}}", baseEvalContext)
     ).toBe("a.b.c");
   });
 
   it("handles regex special characters safely", () => {
     expect(
-      resolveMarkers("{{filter 'a***b**c' dedupe | *}}", baseEvalContext)
+      resolveMarkers("{{filter dedupe 'a***b**c' | *}}", baseEvalContext)
     ).toBe("a*b*c");
   });
 
   it("returns expr unchanged when needle is empty", () => {
     expect(
-      resolveMarkers("{{filter 'hello' dedupe | }}", baseEvalContext)
+      resolveMarkers("{{filter dedupe 'hello' | }}", baseEvalContext)
     ).toBe("hello");
   });
 
   it("solves the 'fit body..' compound-period scenario", () => {
     const text =
-      "{{filter 'You are an adventurer, fit body.. You are great.' dedupe | .}}";
+      "{{filter dedupe 'You are an adventurer, fit body.. You are great.' | .}}";
     expect(resolveMarkers(text, baseEvalContext)).toBe(
       "You are an adventurer, fit body. You are great."
     );
@@ -842,20 +842,20 @@ describe("evalCleanup via resolveMarkers", () => {
 describe("uncapitalize filter", () => {
   it("lowercases the first letter only", () => {
     expect(
-      resolveMarkers("{{filter Hello World uncapitalize}}", baseEvalContext)
+      resolveMarkers("{{filter uncapitalize Hello World}}", baseEvalContext)
     ).toBe("hello World");
   });
 
   it("leaves an already-lowercase first letter alone", () => {
     expect(
-      resolveMarkers("{{filter already lowercase uncapitalize}}", baseEvalContext)
+      resolveMarkers("{{filter uncapitalize already lowercase}}", baseEvalContext)
     ).toBe("already lowercase");
   });
 
   it("composes inside cleanup for mid-sentence transclusion (fully answered)", () => {
     expect(
       resolveMarkers(
-        "{{cleanup {{filter A warrior with red hair. uncapitalize}} | You are traveling alone, with}}",
+        "{{cleanup {{filter uncapitalize A warrior with red hair.}} | You are traveling alone, with}}",
         baseEvalContext
       )
     ).toBe("You are traveling alone, with a warrior with red hair.");

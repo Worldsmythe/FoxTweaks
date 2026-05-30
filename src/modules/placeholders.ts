@@ -557,17 +557,17 @@ export function parseFilterMarker(args: string): FilterMarker | undefined {
   const parts = splitOnPipe(args);
   const head = (parts[0] ?? "").trim();
   if (!head) return undefined;
-  const m = head.match(/^([\s\S]*?)\s+(\S+)$/);
-  if (!m) {
+  const wsIdx = head.search(/\s/);
+  if (wsIdx === -1) {
     return {
-      expr: "",
       name: head.toLowerCase(),
+      expr: "",
       filterArgs: parts.slice(1).map((p) => p.trim()),
     };
   }
   return {
-    expr: (m[1] ?? "").trim(),
-    name: (m[2] ?? "").toLowerCase(),
+    name: head.slice(0, wsIdx).toLowerCase(),
+    expr: head.slice(wsIdx + 1).trim(),
     filterArgs: parts.slice(1).map((p) => p.trim()),
   };
 }

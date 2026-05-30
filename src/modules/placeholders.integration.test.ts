@@ -403,8 +403,8 @@ Enable: true`);
       const hooks = core.createHooks();
 
       const plotEssentialsBody = [
-        `Name: {{filter {{extract "Character Name:"}} capitalize}}`,
-        `Class: {{filter {{extract "Character Class:"}} upper}}`,
+        `Name: {{filter capitalize {{extract "Character Name:"}}}}`,
+        `Class: {{filter upper {{extract "Character Class:"}}}}`,
         "",
         "{{capture}}",
         `{{removepost "You wake up"}}`,
@@ -428,7 +428,7 @@ Enable: true`);
 
       addStoryCard(
         "Excalibur",
-        "The legendary blade {{filter excalibur capitalize}} of kings.",
+        "The legendary blade {{filter capitalize excalibur}} of kings.",
         "mythical-weapons",
         "Excalibur"
       );
@@ -561,8 +561,8 @@ Enable: true`);
 
       const template =
         "{{default " +
-        "{{cleanup {{filter kira capitalize}} | You are traveling with | ,}} " +
-        "{{cleanup {{filter A warrior of some renown. uncapitalize}}}} " +
+        "{{cleanup {{filter capitalize kira}} | You are traveling with | ,}} " +
+        "{{cleanup {{filter uncapitalize A warrior of some renown.}}}} " +
         "| You are traveling alone.}}";
 
       const result = hooks.onContext(SAMPLE_CONTEXT(template));
@@ -699,7 +699,7 @@ Enable: true`);
 
       addStoryCard(
         "card-with-markers",
-        "Resolved: {{filter hello capitalize}}.",
+        "Resolved: {{filter capitalize hello}}.",
         "lore",
         "Card With Markers"
       );
@@ -772,13 +772,13 @@ Enable: true`);
       companionDesc: string;
     }) => `{{% Plot Essentials for an interactive fantasy adventure %}}
 
-You are {{default {{filter {{extract "Name:"}} capitalize}} | a nameless wanderer}}, a {{default {{filter {{extract "Class:"}} lower}} | drifter}}. {{if {{extract "Age:"}} >= 18 | An adult ready for adventure. | A youth on the cusp of greatness.}}
+You are {{default {{filter capitalize {{extract "Name:"}}}} | a nameless wanderer}}, a {{default {{filter lower {{extract "Class:"}}}} | drifter}}. {{if {{extract "Age:"}} >= 18 | An adult ready for adventure. | A youth on the cusp of greatness.}}
 
 Your weapon: {{default {{if {{extract "Weapon:"}} ~= "mythical-weapons" transclude}} | bare-handed}}
 
-{{default {{cleanup ${info.companionName} | You travel with | ,}} {{filter {{cleanup ${info.companionDesc}}} uncapitalize}} | You travel alone.}}
+{{default {{cleanup ${info.companionName} | You travel with | ,}} {{filter uncapitalize {{cleanup ${info.companionDesc}}}}} | You travel alone.}}
 
-{{filter 'Notes: ${info.description}.' dedupe | .}}
+{{filter dedupe 'Notes: ${info.description}.' | .}}
 
 {{removeafter "CHARACTER INFORMATION"}}
 
